@@ -1,0 +1,4 @@
+(executable
+ (public_name Target_ocaml_edition)
+ (name main)
+ (libraries Target_ocaml_edition))
