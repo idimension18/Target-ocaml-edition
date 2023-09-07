@@ -1,0 +1,8 @@
+Mixage audio :
+TargetSong 0db
+lazer 0db
+break 0db
+spark 0db
+blow 0db
+
+sparkGif delay : 4
