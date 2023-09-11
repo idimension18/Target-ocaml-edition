@@ -1,11 +1,15 @@
+(* Importing SDL  *)
 open Tsdl
 open Tsdl_image
 open Tsdl_ttf
 open Tsdl_mixer
 
+(* Importing game objects  *)
+open Ship
+
 let screenWidth = 1000 and screenHeight = 500 (* default screen dims *)
 
-let scaleX = 1. and scaleY = 1. (* When the screen is resize *)
+let scale_x = ref 1. and scale_y = ref 1. (* When the screen is resize *)
 
 let mainSpeed = 3 (* I forgot for this one :/ *)
 
@@ -14,8 +18,31 @@ let maxAxis = 32768. (* for the stick controller *)
 (* A function to calculate circular collision  *)
 let circular_colision = () 
 
-(* Re-size-ing components  *)
-let scaleRect = ()
+(* update component scaling value *)
+let update_scale window = 
+	let (new_w, new_h) = Sdl.get_window_size window in
+	begin
+		scale_x := (float_of_int new_w) /. (float_of_int screenWidth);
+		scale_y := (float_of_int new_h) /. (float_of_int screenHeight)
+	end
+
+(* Re-size-ing components *)
+let scale_rect rect  = (Sdl.Rect.create
+	~x:(int_of_float ((float_of_int (Sdl.Rect.x rect)) *. !scale_x))
+	~y:(int_of_float ((float_of_int (Sdl.Rect.y rect)) *. !scale_y))
+	~w:(int_of_float ((float_of_int (Sdl.Rect.w rect)) *. !scale_x))
+	~h:(int_of_float ((float_of_int (Sdl.Rect.h rect)) *. !scale_y)))
+
+(* update renderer *)
+let draw render texture x y : unit = 
+	match Sdl.query_texture texture with
+			| Error(`Msg e) -> Sdl.log "Error: %s" e; exit 1;
+			| Ok (_, _, (w, h)) -> let dst_rect = Sdl.Rect.create ~x:x ~y:y ~w:w ~h:h in
+					match (Sdl.render_copy 
+						~src:(Sdl.Rect.create ~x:0 ~y:0 ~w:w ~h:h) ~dst:(scale_rect dst_rect) 
+						render texture) with
+					| Error(`Msg e) -> Sdl.log "Error: %s" e; exit 1
+					| Ok _ -> ()
 
 let () = 
 	(* ---- SDL and accompagned lib init --- *)
@@ -63,9 +90,9 @@ let () =
 	| Ok m5x7 ->
 
 	(* Windows creation *)
-	match Sdl.create_window "target_ocaml_edition" 
+	match Sdl.create_window "Target ocaml edition" 
 		~x:Sdl.Window.pos_centered ~y:Sdl.Window.pos_centered ~w:screenWidth ~h:screenHeight 
-		Sdl.Window.(windowed) with
+		Sdl.Window.(windowed + resizable) with
 	| Error(`Msg e) -> Sdl.log "Create window error: %s" e; exit 1
 	| Ok window ->
 
@@ -99,11 +126,47 @@ let () =
 	| Ok target_soundtrack ->
 	
 	(* ---------------------------------------------- *)
+	(* Objects declarations *)
+	let ship_obj = new Ship.ship render in
 
+	
 	(* play the soundtrack *)
 	match Mixer.play_music target_soundtrack (-1) with
 	| Error(`Msg e) -> Sdl.log "Error: %s" e; exit 1;
 	| Ok _ ->
+	
+
+	(* ---------- main loop ------------ *)
+	let game_is_running = ref true in
+	let rec main_loop () = 
+		(* ---------- SDL EVENTS  ------------*)
+		let evt = Sdl.Event.create() in
+		while Sdl.poll_event (Some evt) do
+			match Sdl.Event.(enum @@ get evt typ) with
+			| `Quit -> game_is_running := false (* check if the game is about to close *)
+			| `Window_event ->
+			begin
+				match Sdl.Event.(window_event_enum @@ get evt window_event_id) with
+				| `Resized -> update_scale window
+				| _ -> ()
+			end
+			| _ -> ()
+		done;
+		
+		(* --------- RENDERING ------------- *)
+		(* Background  *)
+		draw render background 0 0;
+		
+		Sdl.render_present render;
+		(* ---------------------------*)
+		
+		(* Exit main loop and Cap to 60 FPS *)
+		if !game_is_running then begin (Sdl.delay (Int32.of_int 16)); main_loop() end
+	in
+
+	main_loop();
+	(* --------------------------------- *)
+
 	
 	(* Clean up and quit *)
 	Sdl.destroy_renderer render;
