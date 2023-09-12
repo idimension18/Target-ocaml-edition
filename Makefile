@@ -8,21 +8,28 @@ LDFLAGS = -package tsdl -package tsdl-image -package tsdl-mixer -package tsdl-tt
 SRCS = $(shell find $(SOURCE_DIR) -name '*.ml' -and -not -name 'main.ml')
 FILE = $(SRCS:$(SOURCE_DIR)/%=%)
 OBJS = $(FILE:.ml=.cmo)
+MLIS = $(FILE:.ml=.mli)
 
-all : dir $(EXEC) clean-ocaml
+all : dir $(EXEC)
 
 dir :
 	mkdir $(BUILD_DIR)
 
-$(EXEC) : $(OBJS)
-	$(CC) -o $(BUILD_DIR)/$@ $(LDFLAGS) $(addprefix $(BUILD_DIR)/,$(OBJS)) src/main.ml
-	mv -t build/ src/*.cmi src/*.cmo
+$(EXEC) : $(MLIS) main.ml  $(OBJS)
+	$(CC) -o $(BUILD_DIR)/$@ $(addprefix $(SOURCE_DIR)/,$(OBJS)) $(SOURCE_DIR)/main.cmo $(LDFLAGS)
+	mv -t $(BUILD_DIR)/ $(SOURCE_DIR)/*.cmi $(SOURCE_DIR)/*.cmo $(SOURCE_DIR)/*.mli
 	@echo done!	
 
+$(MLIS): %.mli: $(SOURCE_DIR)/%.ml
+	$(CC) -i -c $< > $(<:.ml=.mli) $(LDFLAGS)
 
+main.ml:
+	cd src;\
+	$(CC) -c $(MLIS) main.ml $(LDFLAGS)
 
 $(OBJS): %.cmo: $(SOURCE_DIR)/%.ml
-	$(CC) -o $(BUILD_DIR)/$@ $(LDFLAGS) -c $<
+	cd src;\
+	$(CC) -c $(<:src/%=%) $(LDFLAGS)
  
 clean:
 	rm -r $(BUILD_DIR)
