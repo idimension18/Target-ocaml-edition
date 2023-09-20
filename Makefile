@@ -30,6 +30,10 @@ main.ml:
 $(OBJS): %.cmo: $(SOURCE_DIR)/%.ml
 	cd src;\
 	$(CC) -c $(<:src/%=%) $(LDFLAGS)
- 
+
 clean:
 	rm -r $(BUILD_DIR)
+
+clean-ocaml:
+	cd src;\
+	rm *.mli *.cmi *.cmo 

@@ -15,6 +15,18 @@ let mainSpeed = 3 (* I forgot for this one :/ *)
 
 let maxAxis = 32768. (* for the stick controller *)
 
+
+(* check result and crash if error *)
+let check_result rsl = match rsl with
+	| Error(`Msg e) -> Sdl.log "Error:%s" e; exit 1
+	| Ok rtn -> rtn
+
+(* check result and ignore if error *)
+let check_result_ignore rsl = match rsl with
+	| Error(`Msg e) -> (Sdl.log "Error:%s" e); None
+	| Ok rtn -> Some(rtn)
+
+
 (* A function to calculate circular collision  *)
 let circular_colision = () 
 
@@ -26,6 +38,7 @@ let update_scale window =
 		scale_y := (float_of_int new_h) /. (float_of_int screenHeight)
 	end
 
+(* --------- utilities --------- *)
 (* Re-size-ing components *)
 let scale_rect rect  = (Sdl.Rect.create
 	~x:(int_of_float ((float_of_int (Sdl.Rect.x rect)) *. !scale_x))
@@ -35,21 +48,46 @@ let scale_rect rect  = (Sdl.Rect.create
 
 (* update renderer *)
 let draw render texture x y : unit = 
-	match Sdl.query_texture texture with
-			| Error(`Msg e) -> Sdl.log "Error: %s" e; exit 1;
-			| Ok (_, _, (w, h)) -> let dst_rect = Sdl.Rect.create ~x:x ~y:y ~w:w ~h:h in
-					match (Sdl.render_copy 
-						~src:(Sdl.Rect.create ~x:0 ~y:0 ~w:w ~h:h) ~dst:(scale_rect dst_rect) 
-						render texture) with
-					| Error(`Msg e) -> Sdl.log "Error: %s" e; exit 1
-					| Ok _ -> ()
+	let (_, _, (w, h)) = check_result(Sdl.query_texture texture) in
+	let dst_rect = Sdl.Rect.create ~x:x ~y:y ~w:w ~h:h in
+	(check_result (Sdl.render_copy 
+		~src:(Sdl.Rect.create ~x:0 ~y:0 ~w:w ~h:h) ~dst:(scale_rect dst_rect) 
+		render texture))
 
+(* update renderer ex (with an angle) *)
+let draw_ex render texture x y angle : unit = 
+	let (_, _, (w, h)) = check_result(Sdl.query_texture texture) in
+	let dst_rect = Sdl.Rect.create ~x:x ~y:y ~w:w ~h:h in
+	(check_result (Sdl.render_copy_ex 
+		~src:(Sdl.Rect.create ~x:0 ~y:0 ~w:w ~h:h) ~dst:(scale_rect dst_rect) 
+		render texture angle None Sdl.Flip.(none)))
+(* --------------------------------*)
+
+
+(* A function to calculate circular collision  *)
+let circular_colision = () 
+
+(* update component scaling value *)
+let update_scale window = 
+	let (new_w, new_h) = Sdl.get_window_size window in
+	begin
+		scale_x := (float_of_int new_w) /. (float_of_int screenWidth);
+		scale_y := (float_of_int new_h) /. (float_of_int screenHeight)
+	end
+
+(* log controller info *)
+let log_controller_info controller_option =
+	Sdl.log "\n";
+	Sdl.log "Controller data : \n";
+	match controller_option with 
+	| None -> ()
+	| Some(controller) -> Sdl.log "%s \n\n" (check_result (Sdl.game_controller_mapping controller))
+
+(* -------- main code ------ *)
 let () = 
 	(* ---- SDL and accompagned lib init --- *)
 	(* SDL init *)
-	match Sdl.init Sdl.Init.(video + joystick) with
-	| Error(`Msg e) -> Sdl.log "Init error: %s" e; exit 1
-	| Ok()  -> 
+	let _ = check_result (Sdl.init Sdl.Init.(video + joystick)) in
 
 	(* SDL_image init  *)
 	let _ = Image.init Image.Init.(png) in
@@ -58,60 +96,33 @@ let () =
 	let _ = Ttf.init() in
 
 	(* SDL_mixer init *)
-	match Mixer.open_audio 44100 Mixer.default_format Mixer.default_channels 1024 with
-	| Error(`Msg e) -> Sdl.log "Mixer error: %s" e; exit 1;
-	| Ok() ->
+	let _ = check_result (Mixer.open_audio 44100 Mixer.default_format Mixer.default_channels 1024) in
 	(* ------------------------------------- *)
-
-	(* Loading controller  *)
-	match Sdl.game_controller_open 0 with
-	| Error(`Msg e) -> Sdl.log "Controller error: %s" e; exit 1 
-	| Ok controller ->
 	
-
+	(* Loading controller  *)
+	let controller_option = check_result_ignore (Sdl.game_controller_open 0) in
+	
 	(* just printing values *)
-	Sdl.log "\n";
-	Sdl.log "Controller data : \n";
-	match Sdl.game_controller_mapping controller with 
-	| Error(`Msg e) -> Sdl.log "%s" e; exit 1;
-	| Ok mapping -> Sdl.log "%s \n\n" mapping;
-
-	 
-	(* SDL_image init  *)
-	let _ = Image.init  Image.Init.(png) in
-
-
-	(* SDL_ttf init *)
-	let _ = Ttf.init() in
-
+	let _ = log_controller_info controller_option in
+	
 	(* m5x7 font *)
-	match Ttf.open_font "../data/fonts/m5x7.ttf" 50 with
-	| Error(`Msg e) -> Sdl.log "Error: %s" e; exit 1;
-	| Ok m5x7 ->
+	let m5x7 = check_result (Ttf.open_font "../data/fonts/m5x7.ttf" 50) in
 
 	(* Windows creation *)
-	match Sdl.create_window "Target ocaml edition" 
+	let window = check_result (Sdl.create_window "Target ocaml edition" 
 		~x:Sdl.Window.pos_centered ~y:Sdl.Window.pos_centered ~w:screenWidth ~h:screenHeight 
-		Sdl.Window.(windowed + resizable) with
-	| Error(`Msg e) -> Sdl.log "Create window error: %s" e; exit 1
-	| Ok window ->
-
+		Sdl.Window.(windowed + resizable)) in 
+	
 	(* Renderer creation *)
-	match Sdl.create_renderer window with
-	| Error(`Msg e) -> Sdl.log "Can't create renderer : %s" e; exit 1;
-	| Ok render ->
-
+	let render = check_result (Sdl.create_renderer window) in
+	
 
 	(* ---------- Graphics and UI ------------ *)
 	(* Background *)
-	match Image.load "../data/images/background.png" with
-	| Error(`Msg e) -> Sdl.log "Error: %s" e; exit 1;
-	| Ok background_surface -> 
+	let background_surface = check_result (Image.load "../data/images/background.png") in
 
-	match Sdl.create_texture_from_surface render background_surface with 
-	| Error(`Msg e) -> Sdl.log "Error: %s" e; exit 1
-	| Ok background ->
-	
+	let background = check_result (Sdl.create_texture_from_surface render background_surface) in 
+
 	(* Score *)
 	
 	(* ----------------------------------------- *)
@@ -121,21 +132,17 @@ let () =
 	let _ = Mixer.allocate_channels 10 in
 
 	(* Soundtrack *)
-	match Mixer.load_mus "../data/music/TargetSong.wav" with
-	| Error(`Msg e) -> Sdl.log "Error: %s" e; exit 1;
-	| Ok target_soundtrack ->
+	let target_soundtrack = check_result (Mixer.load_mus "../data/music/TargetSong.wav") in
 	
 	(* ---------------------------------------------- *)
 	(* Objects declarations *)
-	let ship_obj = new Ship.ship render in
+	let ship = new Ship.ship render in
 
 	
 	(* play the soundtrack *)
-	match Mixer.play_music target_soundtrack (-1) with
-	| Error(`Msg e) -> Sdl.log "Error: %s" e; exit 1;
-	| Ok _ ->
-	
+	let _ = check_result (Mixer.play_music target_soundtrack (-1)) in
 
+	
 	(* ---------- main loop ------------ *)
 	let game_is_running = ref true in
 	let rec main_loop () = 
@@ -143,19 +150,44 @@ let () =
 		let evt = Sdl.Event.create() in
 		while Sdl.poll_event (Some evt) do
 			match Sdl.Event.(enum @@ get evt typ) with
+			(* --------- Window events-------- *)
 			| `Quit -> game_is_running := false (* check if the game is about to close *)
-			| `Window_event ->
-			begin
-				match Sdl.Event.(window_event_enum @@ get evt window_event_id) with
-				| `Resized -> update_scale window
-				| _ -> ()
-			end
+			| `Window_event -> 
+				begin
+					match Sdl.Event.(window_event_enum @@ get evt window_event_id) with
+					| `Resized -> update_scale window
+					| _ -> ()
+				end
+			(* -------- Controller events ----- *)
+			| `Controller_button_down -> 
+				begin
+					Sdl.log "yo";
+					match controller_option with 
+					| None -> ()
+					| Some(controller) -> 
+					begin
+						Sdl.log "%d" (Sdl.game_controller_get_button controller Sdl.Controller.(button_a));
+						if (Sdl.game_controller_get_button controller Sdl.Controller.(button_a)) == 1 then
+							 ship#set_fire_on true
+					end
+				end
+			(* --------------------------------- *)
 			| _ -> ()
 		done;
+
+		(* ------ Game logic --------- *)
+		ship#update (screenWidth, screenHeight);
 		
 		(* --------- RENDERING ------------- *)
 		(* Background  *)
 		draw render background 0 0;
+
+		(* Ship *)
+		if ship#get_visible then 
+		begin 
+				draw_ex render ship#get_body (int_of_float ship#get_x) (int_of_float ship#get_y) ship#get_angle;
+				if ship#get_fire_on then draw_ex render ship#get_fire (int_of_float ship#get_x) (int_of_float ship#get_y) ship#get_angle
+		end;
 		
 		Sdl.render_present render;
 		(* ---------------------------*)
@@ -166,7 +198,6 @@ let () =
 
 	main_loop();
 	(* --------------------------------- *)
-
 	
 	(* Clean up and quit *)
 	Sdl.destroy_renderer render;
