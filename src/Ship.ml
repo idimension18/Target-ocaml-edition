@@ -32,7 +32,8 @@ module Ship = struct
 		object
 			(* --------- Variable --------- *)
 			(* Logical data  *)
-			val mutable x = 500. val mutable y = 250. val mutable angle = 90.
+			val mutable x = 500. val mutable y = 250. 
+			val mutable angle = 0. val mutable new_angle = 0.
 			val mutable velocity_x = 0. val mutable velocity_y = 0.
 			val speed_max = 5. val rotation_speed = 7 val jet_power = 0.1
 			val mutable is_blowing_up = false val mutable is_damaged = false
@@ -55,16 +56,17 @@ module Ship = struct
 
 			(* ---- Setter -------- *)
 			method set_fire_on value = fire_on <- value
+			method set_new_angle a = new_angle <- a
 		
 			(* ----- Other method -------*)
 
 			(* automaticaly update ship *)
-			method update (screen_w, screen_h) = 
+			method update (screen_w, screen_h)  = 
 				(* Update functions *)
 				let go = if fire_on then   (* Turn the fire on *)
 					begin
 						velocity_x <- velocity_x +. (Float.cos (angle *. (pi /. 180.))) *. jet_power;
-						velocity_y <- velocity_y +. (Float.cos (angle *. (pi /. 180.))) *. jet_power;
+						velocity_y <- velocity_y +. (Float.sin (angle *. (pi /. 180.))) *. jet_power;
 
 						(* ------ speedmax ----- *)
 						if (Int.abs (int_of_float velocity_x)) > (int_of_float speed_max) then 
@@ -92,7 +94,7 @@ module Ship = struct
 					| (_, _) -> ()
 
 
-				and rotate new_angle = ()
+				and rotate = angle <- new_angle
 				(* -------------------- *)
 				
 				in (* start update function  *)
@@ -100,6 +102,7 @@ module Ship = struct
 					go;
 					velocity;
 					screen_border screen_w screen_h; 
+					rotate;
 				end
 
 			

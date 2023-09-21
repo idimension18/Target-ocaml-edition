@@ -13,8 +13,18 @@ let scale_x = ref 1. and scale_y = ref 1. (* When the screen is resize *)
 
 let mainSpeed = 3 (* I forgot for this one :/ *)
 
-let maxAxis = 32768. (* for the stick controller *)
+(* Sdl.log " ";
+Sdl.log "axis_x : %d" axis_x;
+Sdl.log "axis_y : %d" axis_y;
+Sdl.log "adjacents : %f" ad;
+Sdl.log "Hypo : %f" hyp;
+Sdl.log "cos(new_angle_rad) : %f" (ad /. hyp);
+Sdl.log "new_angle_rad : %f" (Float.acos (ad /. hyp)) ;
+Sdl.log "new_angle_deg : %f" 
+	(if axis_y > 0 then ((Float.acos (ad /. hyp)) *. (180. /. pi))
+	else 36*)
 
+let pi = 4. *. Float.atan 1.
 
 (* check result and crash if error *)
 let check_result rsl = match rsl with
@@ -87,7 +97,7 @@ let log_controller_info controller_option =
 let () = 
 	(* ---- SDL and accompagned lib init --- *)
 	(* SDL init *)
-	let _ = check_result (Sdl.init Sdl.Init.(video + joystick)) in
+	let _ = check_result (Sdl.init Sdl.Init.(video + gamecontroller)) in
 
 	(* SDL_image init  *)
 	let _ = Image.init Image.Init.(png) in
@@ -159,17 +169,47 @@ let () =
 					| _ -> ()
 				end
 			(* -------- Controller events ----- *)
+			(* Get button down *)
 			| `Controller_button_down -> 
 				begin
-					Sdl.log "yo";
 					match controller_option with 
 					| None -> ()
 					| Some(controller) -> 
-					begin
-						Sdl.log "%d" (Sdl.game_controller_get_button controller Sdl.Controller.(button_a));
-						if (Sdl.game_controller_get_button controller Sdl.Controller.(button_a)) == 1 then
-							 ship#set_fire_on true
-					end
+						begin
+							(* A Button *)
+							if (Sdl.game_controller_get_button controller Sdl.Controller.(button_right_shoulder)) == 1 then
+								ship#set_fire_on true
+						end
+				end
+			(* Get button up *)
+			| `Controller_button_up ->
+				begin
+					match controller_option with
+					| None -> ()
+					| Some(controller) ->
+						begin
+							(* B Button *)
+							if (Sdl.game_controller_get_button controller Sdl.Controller.(button_right_shoulder)) == 0 then
+								ship#set_fire_on false
+						end
+				end
+			(* Get axis states *)
+			| `Controller_axis_motion ->
+				begin 
+					match controller_option with
+					| None -> ()
+					| Some(controller) ->
+						begin
+							(* ---- Analog pad ----- *)
+							let axis_x = Sdl.game_controller_get_axis controller Sdl.Controller.(axis_left_x)
+							and axis_y = Sdl.game_controller_get_axis controller Sdl.Controller.(axis_left_y) in
+							if axis_x != 128 || axis_y != 128   (* dead zone check TO MODIFY !!! *) then
+							let hyp = Float.sqrt (((float_of_int axis_x)**2.) +. ((float_of_int axis_y)**2.))
+							and ad = float_of_int axis_x in
+							ship#set_new_angle 
+								(if axis_y > 0 then ((Float.acos (ad /. hyp)) *. (180. /. pi))
+								else 360. -. ((Float.acos (ad /. hyp)) *. (180. /. pi)));
+						end
 				end
 			(* --------------------------------- *)
 			| _ -> ()
