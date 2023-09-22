@@ -1,10 +1,6 @@
 open Tsdl
 open Tsdl_image
 
-(* cst and stuff  *)
-let pi = 4. *. Float.atan 1.0
-(* -------------   *)
-
 let ship_size = 64
 
 (* check result and crash if error *)
@@ -26,6 +22,19 @@ let load_image render link cut_rect scale_rect_value =
 	let _ = check_result (Sdl.blit_scaled ~src:croped_img None ~dst:scaled_img (Some scale_rect)) in
 	check_result (Sdl.create_texture_from_surface render scaled_img)
 
+(* Give the direction for smooth rotation *)
+let rotation_direction angle new_angle =
+	let delta_angle = angle -. new_angle in
+	if delta_angle >= 0. then 
+		if delta_angle <= 180. then (-. 1.) else 1.
+	else 
+		if delta_angle >= (-. 180.) then 1. else (-. 1.)
+
+(* Hold angle between 0 and 359 *)
+let angle_projection angle = match angle with
+	| a when a < 0. -> (a +. 360.)
+	| a when a >= 360. -> (a -. 360.)
+	| _ -> angle
 
 module Ship = struct
 	class ship render = 
@@ -35,7 +44,7 @@ module Ship = struct
 			val mutable x = 500. val mutable y = 250. 
 			val mutable angle = 0. val mutable new_angle = 0.
 			val mutable velocity_x = 0. val mutable velocity_y = 0.
-			val speed_max = 5. val rotation_speed = 7 val jet_power = 0.1
+			val speed_max = 5. val rotation_speed = 7. val jet_power = 0.1
 			val mutable is_blowing_up = false val mutable is_damaged = false
 			val mutable visible = true val mutable fire_on = false
 
@@ -65,8 +74,8 @@ module Ship = struct
 				(* Update functions *)
 				let go = if fire_on then   (* Turn the fire on *)
 					begin
-						velocity_x <- velocity_x +. (Float.cos (angle *. (pi /. 180.))) *. jet_power;
-						velocity_y <- velocity_y +. (Float.sin (angle *. (pi /. 180.))) *. jet_power;
+						velocity_x <- velocity_x +. (Float.cos (angle *. (Float.pi /. 180.))) *. jet_power;
+						velocity_y <- velocity_y +. (Float.sin (angle *. (Float.pi /. 180.))) *. jet_power;
 
 						(* ------ speedmax ----- *)
 						if (Int.abs (int_of_float velocity_x)) > (int_of_float speed_max) then 
@@ -94,7 +103,15 @@ module Ship = struct
 					| (_, _) -> ()
 
 
-				and rotate = angle <- new_angle
+				and slerp_rotate = 
+					if Float.abs (angle -. new_angle) >= rotation_speed then (* avoiding flickering *)
+						let direct = rotation_direction angle new_angle in 
+						let amount = rotation_speed *. direct in
+						begin
+							angle <- angle +. amount;
+							angle <- angle_projection angle
+						end
+					else angle <- new_angle
 				(* -------------------- *)
 				
 				in (* start update function  *)
@@ -102,7 +119,7 @@ module Ship = struct
 					go;
 					velocity;
 					screen_border screen_w screen_h; 
-					rotate;
+					slerp_rotate;
 				end
 
 			

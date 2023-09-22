@@ -240,10 +240,11 @@ let () =
 	(* --------------------------------- *)
 	
 	(* Clean up and quit *)
+	match controller_option with | None -> (); | Some(controller) -> Sdl.game_controller_close controller;
 	Sdl.destroy_renderer render;
 	Sdl.free_surface background_surface;
 	Sdl.destroy_window window;
-
+	
 	Ttf.quit();
 	Image.quit();
 	Mixer.close_audio();
