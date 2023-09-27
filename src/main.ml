@@ -6,23 +6,11 @@ open Tsdl_mixer
 
 (* Importing game objects  *)
 open Ship
+open Laser
 
 let screenWidth = 1000 and screenHeight = 500 (* default screen dims *)
 
 let scale_x = ref 1. and scale_y = ref 1. (* When the screen is resize *)
-
-let mainSpeed = 3 (* I forgot for this one :/ *)
-
-(* Sdl.log " ";
-Sdl.log "axis_x : %d" axis_x;
-Sdl.log "axis_y : %d" axis_y;
-Sdl.log "adjacents : %f" ad;
-Sdl.log "Hypo : %f" hyp;
-Sdl.log "cos(new_angle_rad) : %f" (ad /. hyp);
-Sdl.log "new_angle_rad : %f" (Float.acos (ad /. hyp)) ;
-Sdl.log "new_angle_deg : %f" 
-	(if axis_y > 0 then ((Float.acos (ad /. hyp)) *. (180. /. pi))
-	else 36*)
 
 let pi = 4. *. Float.atan 1.
 
@@ -37,8 +25,14 @@ let check_result_ignore rsl = match rsl with
 	| Ok rtn -> Some(rtn)
 
 
-(* A function to calculate circular collision  *)
-let circular_colision = () 
+(* Calculate circular collision  *)
+let collide obj1 obj2 = 
+	( Float.sqrt ((obj1#get_center_x -. obj2#get_center_x)**2. +. (obj1#get_center_y -. obj2#get_center_y)**2.) )
+	< obj1#get_radius +. obj2#get_radius
+
+(* Return obj that collide with obj1, None otherwise *)
+let collide_with_list obj1 obj_list = ()
+
 
 (* update component scaling value *)
 let update_scale window = 
@@ -140,14 +134,13 @@ let () =
 	(* ------ Soundtracks and sound effetcs ------- *)
 	(* Channels allocation *)
 	let _ = Mixer.allocate_channels 10 in
-
 	(* Soundtrack *)
 	let target_soundtrack = check_result (Mixer.load_mus "../data/music/TargetSong.wav") in
 	
 	(* ---------------------------------------------- *)
 	(* Objects declarations *)
-	let ship = new Ship.ship render in
-
+	let ship = new Ship.ship render 
+	and lasers_list = ref [] in 
 	
 	(* play the soundtrack *)
 	let _ = check_result (Mixer.play_music target_soundtrack (-1)) in
@@ -176,23 +169,21 @@ let () =
 					| None -> ()
 					| Some(controller) -> 
 						begin
-							(* A Button *)
-							if (Sdl.game_controller_get_button controller Sdl.Controller.(button_right_shoulder)) == 1 then
-								ship#set_fire_on true
+							(* A Button create lasers*)
+							if (Sdl.game_controller_get_button controller Sdl.Controller.(button_a)) == 1 then
+								begin 
+									let new_laser = new Laser.laser render 
+										(ship#get_center_x -. (Laser.width /. 2.)) 
+										(ship#get_center_y -. (Laser.height /. 2.)) 
+										ship#get_angle in
+									let _ = check_result (Mixer.play_channel (-1) new_laser#get_sound 0) in
+									lasers_list := new_laser::!lasers_list
+								end
 						end
 				end
 			(* Get button up *)
-			| `Controller_button_up ->
-				begin
-					match controller_option with
-					| None -> ()
-					| Some(controller) ->
-						begin
-							(* B Button *)
-							if (Sdl.game_controller_get_button controller Sdl.Controller.(button_right_shoulder)) == 0 then
-								ship#set_fire_on false
-						end
-				end
+			| `Controller_button_up -> ()
+			
 			(* Get axis states *)
 			| `Controller_axis_motion ->
 				begin 
@@ -200,10 +191,13 @@ let () =
 					| None -> ()
 					| Some(controller) ->
 						begin
+							if (Sdl.game_controller_get_axis controller Sdl.Controller.(axis_trigger_right)) >= 1
+								then ship#set_fire_on true
+								else ship#set_fire_on false;
 							(* ---- Analog pad ----- *)
 							let axis_x = Sdl.game_controller_get_axis controller Sdl.Controller.(axis_left_x)
 							and axis_y = Sdl.game_controller_get_axis controller Sdl.Controller.(axis_left_y) in
-							if axis_x != 128 || axis_y != 128   (* dead zone check TO MODIFY !!! *) then
+							if (Int.abs axis_x) >=  200 || (Int.abs axis_y) >= 200   (* dead zone check TO MODIFY !!! *) then
 							let hyp = Float.sqrt (((float_of_int axis_x)**2.) +. ((float_of_int axis_y)**2.))
 							and ad = float_of_int axis_x in
 							ship#set_new_angle 
@@ -216,7 +210,18 @@ let () =
 		done;
 
 		(* ------ Game logic --------- *)
+		(* Ship *)
 		ship#update (screenWidth, screenHeight);
+
+		(* Lasers *)
+		List.iter (fun laser -> laser#update (screenWidth, screenHeight)) !lasers_list;
+
+
+		(* ------  Destroy stuff ------ *)
+		(* Lasers *)
+		lasers_list := List.rev
+			(List.fold_left (fun acc x -> if x#get_to_destroy then acc else x::acc) [] !lasers_list);
+
 		
 		(* --------- RENDERING ------------- *)
 		(* Background  *)
@@ -226,8 +231,13 @@ let () =
 		if ship#get_visible then 
 		begin 
 				draw_ex render ship#get_body (int_of_float ship#get_x) (int_of_float ship#get_y) ship#get_angle;
-				if ship#get_fire_on then draw_ex render ship#get_fire (int_of_float ship#get_x) (int_of_float ship#get_y) ship#get_angle
+				if ship#get_fire_on then 
+					draw_ex render ship#get_fire (int_of_float ship#get_x) (int_of_float ship#get_y) ship#get_angle
 		end;
+
+		(* Lasers *)
+		List.iter (fun laser -> draw_ex render laser#get_texture laser#get_int_x laser#get_int_y laser#get_angle)
+			!lasers_list;
 		
 		Sdl.render_present render;
 		(* ---------------------------*)

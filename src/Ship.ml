@@ -47,6 +47,7 @@ module Ship = struct
 			val speed_max = 5. val rotation_speed = 7. val jet_power = 0.1
 			val mutable is_blowing_up = false val mutable is_damaged = false
 			val mutable visible = true val mutable fire_on = false
+			
 
 			(* Graphical data  *)
 			val body = load_image render "../data/images/sprites.png"  
@@ -58,6 +59,9 @@ module Ship = struct
 			(* ----- Getter -------  *)
 			(* Logical data  *)
 			method get_x = x method get_y = y method get_angle = angle
+			method get_center_x = x +. ((float_of_int ship_size) /. 2.)
+			method get_center_y = y +. ((float_of_int ship_size) /. 2.)
+			method get_radius = ( Float.sqrt (2. *. (float_of_int ship_size)**2.) ) /. 2.
 			method get_visible = visible method get_fire_on = fire_on
 
 			(* Graphical data  *)
@@ -95,13 +99,12 @@ module Ship = struct
 
 
 				(* the ship stay in the window *)
-				and screen_border screen_w screen_h  = match (int_of_float x, int_of_float y) with
+				and screen_border  = match (int_of_float x, int_of_float y) with
 					| (a, _) when a < 0 -> begin velocity_x <- 0.; x <- 0. end
 					| (a, _) when a > screen_w - ship_size -> begin velocity_x <- 0.; x <- float_of_int (screen_w - ship_size) end
 					| (_, b) when b < 0 -> begin velocity_y <- 0.; y <- 0. end
 					| (_, b) when b > screen_h - ship_size -> begin velocity_y <- 0.; y <- float_of_int (screen_h - ship_size) end
 					| (_, _) -> ()
-
 
 				and slerp_rotate = 
 					if Float.abs (angle -. new_angle) >= rotation_speed then (* avoiding flickering *)
@@ -118,7 +121,7 @@ module Ship = struct
 				begin
 					go;
 					velocity;
-					screen_border screen_w screen_h; 
+					screen_border; 
 					slerp_rotate;
 				end
 
