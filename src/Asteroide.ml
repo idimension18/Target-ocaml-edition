@@ -1,8 +1,6 @@
 open Tsdl
 open Tsdl_image
 
-open Tsdl_tools
-
 module Asteroide = struct
 	class asteroide render screen_w new_y new_size new_type new_angle new_rotation_direction = 
 		object

@@ -4,9 +4,6 @@ open Tsdl_image
 open Tsdl_ttf
 open Tsdl_mixer
 
-(* my modules *)
-open Tsdl_tools
-
 (* Importing game objects  *)
 open Ship
 open Laser
@@ -16,6 +13,16 @@ let screenWidth = 1000 and screenHeight = 500 (* default screen dims *)
 let scale_x = ref 1. and scale_y = ref 1. (* When the screen is resize *)
 
 let pi = 4. *. Float.atan 1.
+
+(* check result and crash if error *)
+let check_result rsl = match rsl with
+	| Error(`Msg e) -> Sdl.log "Error:%s" e; exit 1
+	| Ok rtn -> rtn
+
+(* check result and ignore if error *)
+let check_result_ignore rsl = match rsl with
+	| Error(`Msg e) -> (Sdl.log "Error:%s" e); None
+	| Ok rtn -> Some(rtn)
 
 
 (* Calculate circular collision  *)
@@ -45,17 +52,17 @@ let scale_rect rect  = (Sdl.Rect.create
 
 (* update renderer *)
 let draw render texture x y : unit = 
-	let (_, _, (w, h)) = Tools.check_result(Sdl.query_texture texture) in
+	let (_, _, (w, h)) = check_result(Sdl.query_texture texture) in
 	let dst_rect = Sdl.Rect.create ~x:x ~y:y ~w:w ~h:h in
-	(Tools.Tools.check_result (Sdl.render_copy
+	(check_result (Sdl.render_copy 
 		~src:(Sdl.Rect.create ~x:0 ~y:0 ~w:w ~h:h) ~dst:(scale_rect dst_rect) 
 		render texture))
 
 (* update renderer ex (with an angle) *)
 let draw_ex render texture x y angle : unit = 
-	let (_, _, (w, h)) = Tools.check_result(Sdl.query_texture texture) in
+	let (_, _, (w, h)) = check_result(Sdl.query_texture texture) in
 	let dst_rect = Sdl.Rect.create ~x:x ~y:y ~w:w ~h:h in
-	(Tools.check_result (Sdl.render_copy_ex
+	(check_result (Sdl.render_copy_ex 
 		~src:(Sdl.Rect.create ~x:0 ~y:0 ~w:w ~h:h) ~dst:(scale_rect dst_rect) 
 		render texture angle None Sdl.Flip.(none)))
 (* --------------------------------*)
@@ -78,13 +85,13 @@ let log_controller_info controller_option =
 	Sdl.log "Controller data : \n";
 	match controller_option with 
 	| None -> ()
-	| Some(controller) -> Sdl.log "%s \n\n" (Tools.check_result (Sdl.game_controller_mapping controller))
+	| Some(controller) -> Sdl.log "%s \n\n" (check_result (Sdl.game_controller_mapping controller))
 
 (* -------- main code ------ *)
 let () = 
 	(* ---- SDL and accompagned lib init --- *)
 	(* SDL init *)
-	let _ = Tools.check_result (Sdl.init Sdl.Init.(video + gamecontroller)) in
+	let _ = check_result (Sdl.init Sdl.Init.(video + gamecontroller)) in
 
 	(* SDL_image init  *)
 	let _ = Image.init Image.Init.(png) in
@@ -93,32 +100,32 @@ let () =
 	let _ = Ttf.init() in
 
 	(* SDL_mixer init *)
-	let _ = Tools.check_result (Mixer.open_audio 44100 Mixer.default_format Mixer.default_channels 1024) in
+	let _ = check_result (Mixer.open_audio 44100 Mixer.default_format Mixer.default_channels 1024) in
 	(* ------------------------------------- *)
 	
 	(* Loading controller  *)
-	let controller_option = Tools.check_result_ignore (Sdl.game_controller_open 0) in
+	let controller_option = check_result_ignore (Sdl.game_controller_open 0) in
 	
 	(* just printing values *)
 	let _ = log_controller_info controller_option in
 	
 	(* m5x7 font *)
-	let m5x7 = Tools.check_result (Ttf.open_font "../data/fonts/m5x7.ttf" 50) in
+	let m5x7 = check_result (Ttf.open_font "../data/fonts/m5x7.ttf" 50) in
 
 	(* Windows creation *)
-	let window = Tools.check_result (Sdl.create_window "Target ocaml edition"
+	let window = check_result (Sdl.create_window "Target ocaml edition" 
 		~x:Sdl.Window.pos_centered ~y:Sdl.Window.pos_centered ~w:screenWidth ~h:screenHeight 
 		Sdl.Window.(windowed + resizable)) in 
 	
 	(* Renderer creation *)
-	let render = Tools.check_result (Sdl.create_renderer window) in
+	let render = check_result (Sdl.create_renderer window) in
 	
 
 	(* ---------- Graphics and UI ------------ *)
 	(* Background *)
-	let background_surface = Tools.check_result (Image.load "../data/images/background.png") in
+	let background_surface = check_result (Image.load "../data/images/background.png") in
 
-	let background = Tools.check_result (Sdl.create_texture_from_surface render background_surface) in
+	let background = check_result (Sdl.create_texture_from_surface render background_surface) in 
 
 	(* Score *)
 	
@@ -128,7 +135,7 @@ let () =
 	(* Channels allocation *)
 	let _ = Mixer.allocate_channels 10 in
 	(* Soundtrack *)
-	let target_soundtrack = Tools.check_result (Mixer.load_mus "../data/music/TargetSong.wav") in
+	let target_soundtrack = check_result (Mixer.load_mus "../data/music/TargetSong.wav") in
 	
 	(* ---------------------------------------------- *)
 	(* Objects declarations *)
@@ -136,7 +143,7 @@ let () =
 	and lasers_list = ref [] in 
 	
 	(* play the soundtrack *)
-	let _ = Tools.check_result (Mixer.play_music target_soundtrack (-1)) in
+	let _ = check_result (Mixer.play_music target_soundtrack (-1)) in
 
 	
 	(* ---------- main loop ------------ *)
@@ -169,7 +176,7 @@ let () =
 										(ship#get_center_x -. (Laser.width /. 2.)) 
 										(ship#get_center_y -. (Laser.height /. 2.)) 
 										ship#get_angle in
-									let _ = Tools.check_result (Mixer.play_channel (-1) new_laser#get_sound 0) in
+									let _ = check_result (Mixer.play_channel (-1) new_laser#get_sound 0) in
 									lasers_list := new_laser::!lasers_list
 								end
 						end
