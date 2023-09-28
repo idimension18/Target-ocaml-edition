@@ -7,12 +7,15 @@ open Tsdl_mixer
 (* Importing game objects  *)
 open Ship
 open Laser
+open Target
+open Asteroide
 
 let screenWidth = 1000 and screenHeight = 500 (* default screen dims *)
 
 let scale_x = ref 1. and scale_y = ref 1. (* When the screen is resize *)
 
-let pi = 4. *. Float.atan 1.
+let debri_frequence = 30
+let main_speed = 3.
 
 (* check result and crash if error *)
 let check_result rsl = match rsl with
@@ -101,6 +104,8 @@ let () =
 
 	(* SDL_mixer init *)
 	let _ = check_result (Mixer.open_audio 44100 Mixer.default_format Mixer.default_channels 1024) in
+
+	let _ = Random.self_init() in
 	(* ------------------------------------- *)
 	
 	(* Loading controller  *)
@@ -140,7 +145,12 @@ let () =
 	(* ---------------------------------------------- *)
 	(* Objects declarations *)
 	let ship = new Ship.ship render 
-	and lasers_list = ref [] in 
+	and lasers_list = ref [] 
+	and asteroides_list = ref []
+	and target_list = ref [] in
+
+	(* useful values declations *)
+	let debri_timer = ref 0 in
 	
 	(* play the soundtrack *)
 	let _ = check_result (Mixer.play_music target_soundtrack (-1)) in
@@ -201,27 +211,60 @@ let () =
 							let hyp = Float.sqrt (((float_of_int axis_x)**2.) +. ((float_of_int axis_y)**2.))
 							and ad = float_of_int axis_x in
 							ship#set_new_angle 
-								(if axis_y > 0 then ((Float.acos (ad /. hyp)) *. (180. /. pi))
-								else 360. -. ((Float.acos (ad /. hyp)) *. (180. /. pi)));
+								(if axis_y > 0 then ((Float.acos (ad /. hyp)) *. (180. /. Float.pi))
+								else 360. -. ((Float.acos (ad /. hyp)) *. (180. /. Float.pi)));
 						end
 				end
 			(* --------------------------------- *)
 			| _ -> ()
 		done;
-
-		(* ------ Game logic --------- *)
+		
+		(* ---- Level update ---- *)
+		incr debri_timer;
+		if !debri_timer > debri_frequence then 
+			begin
+				debri_timer := 0;
+				if (Random.int 10) = 1 then (* Creating targets *)
+					begin
+					let target_size = (Random.int 100) + 50 in 
+					let new_target = new Target.target render screenWidth 
+					(Random.float (500. -. (float_of_int target_size)) ) target_size (Random.int 3) in
+					target_list := new_target::!target_list
+					end;
+					
+				if (Random.int 10) <= 7 then (* Creating asteroides *)
+					begin
+					let new_size = (Random.int 100) + 40  in
+					let new_asteroide = new Asteroide.asteroide render screenWidth 
+						(Random.float (500. -. (float_of_int new_size))) 
+						new_size (Random.int 4) (Random.float 359.) (if Random.bool() then 1 else (-1)) in
+					asteroides_list := new_asteroide::!asteroides_list
+					end;
+			end;
+			
+		(* ------ Objects updates  --------- *)
 		(* Ship *)
 		ship#update (screenWidth, screenHeight);
 
-		(* Lasers *)
-		List.iter (fun laser -> laser#update (screenWidth, screenHeight)) !lasers_list;
-
-
+		(* Lists *)
+		let update_list alpha_list args = 
+			List.iter (fun alpha -> alpha#update args) alpha_list in
+			begin
+				update_list !lasers_list (screenWidth, screenHeight);
+				update_list !asteroides_list main_speed;
+				update_list !target_list main_speed
+			end;
+			
+		(* ---- Collisions ---- *)
+		
 		(* ------  Destroy stuff ------ *)
-		(* Lasers *)
-		lasers_list := List.rev
-			(List.fold_left (fun acc x -> if x#get_to_destroy then acc else x::acc) [] !lasers_list);
-
+		let destroy_update alpha_list = List.rev
+			(List.fold_left (fun acc x -> if x#get_to_destroy then acc else x::acc) [] alpha_list) in
+			begin
+				lasers_list := destroy_update !lasers_list;
+				asteroides_list := destroy_update !asteroides_list;
+				target_list := destroy_update !target_list
+			end;
 		
 		(* --------- RENDERING ------------- *)
 		(* Background  *)
@@ -238,6 +281,15 @@ let () =
 		(* Lasers *)
 		List.iter (fun laser -> draw_ex render laser#get_texture laser#get_int_x laser#get_int_y laser#get_angle)
 			!lasers_list;
+
+		(* Targets *)
+		List.iter (fun tar -> draw render tar#get_texture tar#get_int_x tar#get_int_y)
+			!target_list;
+
+		(* Asteroides *)
+		List.iter (fun aste -> draw_ex render aste#get_texture aste#get_int_x aste#get_int_y aste#get_angle)
+			!asteroides_list;
+		
 		
 		Sdl.render_present render;
 		(* ---------------------------*)

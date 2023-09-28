@@ -41,6 +41,9 @@ module Laser = struct
 
 			(* Graphics *)
 			method get_texture = texture
+
+			(* ---- SETTER ----*)
+			method set_to_destroy = to_destroy <- true
 			
 			(* --------- update ------------*)
 			method update (screen_w, screen_h) = 

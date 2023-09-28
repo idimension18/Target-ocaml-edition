@@ -33,20 +33,20 @@ module Asteroide = struct
 		object
 			(* ---- Variables ---- *)
 			(* Game logic  *)
-			val mutable x = screen_w val mutable angle = new_angle val mutable to_destroy = false
+			val mutable x = (float_of_int screen_w) val mutable angle = new_angle val mutable to_destroy = false
 			val y = new_y val size = new_size val speed_ratio = 60
 
-			val rotation_speed = let speed_ratio = 60. 
+			val rotation_speed = let speed_ratio = 60.
 				and radius = ( Float.sqrt (2. *. ((float_of_int new_size)**2.)) ) /. 2. in
 				(speed_ratio /. radius) *. (float_of_int new_rotation_direction)
 
 			(* Game graphics *)
 			val texture = let cut_rect = 
 				match new_type with
-				| n when n=0 -> Sdl.Rect.create ~x:0 ~y:0 ~w:0 ~h:0
-				| n when n=1 -> Sdl.Rect.create ~x:0 ~y:0 ~w:0 ~h:0
-				| n when n=2 -> Sdl.Rect.create ~x:0 ~y:0 ~w:0 ~h:0
-				| n when n=3 -> Sdl.Rect.create ~x:0 ~y:0 ~w:0 ~h:0
+				| n when n=0 -> Sdl.Rect.create ~x:0 ~y:0 ~w:128 ~h:128
+				| n when n=1 -> Sdl.Rect.create ~x:128 ~y:0 ~w:128 ~h:128
+				| n when n=2 -> Sdl.Rect.create ~x:0 ~y:128 ~w:128 ~h:128
+				| n when n=3 -> Sdl.Rect.create ~x:128 ~y:128 ~w:128 ~h:128
 				| _ -> Sdl.Rect.create ~x:0 ~y:0 ~w:0 ~h:0
 				in load_image render "../data/images/asteroide.png" cut_rect new_size
 
@@ -68,7 +68,7 @@ module Asteroide = struct
 					to_destroy <- x < (-. (float_of_int size) );
 					angle <- angle +. rotation_speed;
 					angle <- angle_projection angle;
-					x <- x +. main_speed;
+					x <- x -. main_speed;
 				end
 		end
 end
