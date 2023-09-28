@@ -2,10 +2,7 @@ open Tsdl
 open Tsdl_image
 open Tsdl_mixer
 
-let check_result rsl = match rsl with
-	| Error(`Msg e) -> Sdl.log "Error: %s" e; exit 1
-	| Ok rtn -> rtn
-
+open Tsdl_tools
 
 module Laser = struct
 	let height = 13.
@@ -19,11 +16,11 @@ module Laser = struct
 			(* val height = 13. val width = 50.   Never change this X/ *)
 
 			(* Sonor *)
-			val sound =  check_result (Mixer.load_wav "../data/music/lazer.wav")
+			val sound =  Tools.check_result (Mixer.load_wav "../data/music/lazer.wav")
 			
 			(* Graphics *)
-			val texture = let laser_img = check_result (Image.load "../data/images/laser.png") in
-				check_result (Sdl.create_texture_from_surface render laser_img)
+			val texture = let laser_img = Tools.check_result (Image.load "../data/images/laser.png") in
+				Tools.check_result (Sdl.create_texture_from_surface render laser_img)
 
 			(* --------- GETTER -----------*)
 			(* Logic Data *)
