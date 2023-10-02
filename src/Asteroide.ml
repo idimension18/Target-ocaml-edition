@@ -56,7 +56,7 @@ module Asteroide = struct
 			method get_center_x = x +. ((float_of_int size) /. 2.)  
 			method get_center_y = y +. ((float_of_int size) /. 2.)
 			method get_angle = angle 
-			method get_radius = ( Float.sqrt (2. *. (float_of_int size)**2.) ) /. 2.
+			method get_radius = (float_of_int size) /. 2.
 			method get_to_destroy = to_destroy
 			
 			(* Graphics *)

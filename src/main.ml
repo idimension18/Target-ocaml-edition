@@ -34,8 +34,11 @@ let collide obj1 obj2 =
 	< obj1#get_radius +. obj2#get_radius
 
 (* Return obj that collide with obj1, None otherwise *)
-let collide_with_list obj1 obj_list = ()
-
+let collide_with_list obj1 obj_list = 
+	List.fold_left (fun acc obj -> match acc with 
+		| None -> if collide obj1 obj then Some(obj) else None
+		| Some(a) -> Some(a) ) 
+		None obj_list
 
 (* update component scaling value *)
 let update_scale window = 
@@ -150,7 +153,8 @@ let () =
 	and target_list = ref [] in
 
 	(* useful values declations *)
-	let debri_timer = ref 0 in
+	let debri_timer = ref 0 
+	and game_over = ref false in
 	
 	(* play the soundtrack *)
 	let _ = check_result (Mixer.play_music target_soundtrack (-1)) in
@@ -218,7 +222,17 @@ let () =
 			(* --------------------------------- *)
 			| _ -> ()
 		done;
+
 		
+		(* ---- level Reset -----*) (* if game over ocured *)
+		if !game_over && not ship#get_is_blowing_up then 
+			begin
+				game_over := false;
+				asteroides_list := [];
+				target_list := [];
+				let _ = check_result (Mixer.play_music target_soundtrack (-1)) in ()
+			end;
+			
 		(* ---- Level update ---- *)
 		incr debri_timer;
 		if !debri_timer > debri_frequence then 
@@ -254,8 +268,38 @@ let () =
 				update_list !asteroides_list main_speed;
 				update_list !target_list main_speed
 			end;
+
 			
 		(* ---- Collisions ---- *)
+		(* Ship and Asteroides *)
+		if not (ship#get_is_damaged || ship#get_is_blowing_up || !game_over) then
+			begin
+				match collide_with_list ship !asteroides_list with
+				| None -> ()
+				| _ -> 
+					begin
+						let _ = check_result (Mixer.halt_music ()) in (); 
+						let _ = check_result (Mixer.play_channel (-1) ship#get_blow 0) in 
+						ship#set_is_blowing_up; 
+						game_over := true
+					end 
+			end;
+			
+		(* Lasers and Targets *)
+		List.iter 
+			(fun target -> List.iter (fun laser -> if collide target laser then 
+				begin
+					let _ = check_result (Mixer.play_channel (-1) target#get_sound 0) in 
+					target#set_to_destroy;
+					laser#set_to_destroy
+				end) !lasers_list)
+			!target_list;
+		
+		(* Lasers and Asteroides *)
+		List.iter 
+			(fun aste -> (List.iter (fun laser -> if collide laser aste then laser#set_to_destroy) !lasers_list)) 
+			!asteroides_list;
+
 		
 		(* ------  Destroy stuff ------ *)
 		let destroy_update alpha_list = List.rev
@@ -265,18 +309,19 @@ let () =
 				asteroides_list := destroy_update !asteroides_list;
 				target_list := destroy_update !target_list
 			end;
-		
+
+
 		(* --------- RENDERING ------------- *)
 		(* Background  *)
 		draw render background 0 0;
 
 		(* Ship *)
-		if ship#get_visible then 
-		begin 
+		if ship#get_is_visible then 
+			begin 
 				draw_ex render ship#get_body (int_of_float ship#get_x) (int_of_float ship#get_y) ship#get_angle;
 				if ship#get_fire_on then 
 					draw_ex render ship#get_fire (int_of_float ship#get_x) (int_of_float ship#get_y) ship#get_angle
-		end;
+			end;
 
 		(* Lasers *)
 		List.iter (fun laser -> draw_ex render laser#get_texture laser#get_int_x laser#get_int_y laser#get_angle)

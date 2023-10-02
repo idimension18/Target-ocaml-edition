@@ -27,7 +27,7 @@ module Target = struct
 			val color_id = new_color_id
 			
 			(* Sounds *)
-			val sound = check_result (Mixer.load_wav "../data/music/TargetSong.wav")
+			val sound = check_result (Mixer.load_wav "../data/music/break.wav")
 			
 			(* Graphics *)
 			val texture = let link =
@@ -46,6 +46,9 @@ module Target = struct
 			method get_radius = (float_of_int size) /. 2.
 			method get_to_destroy = to_destroy
 
+			(* Sounds *)
+			method get_sound = sound
+			
 			(* Graphics *)
 			method get_texture = texture
 			
