@@ -25,6 +25,7 @@ module Target = struct
 			val mutable x = (float_of_int screen_w)  val mutable to_destroy = false
 			val y = new_y val size = new_size
 			val color_id = new_color_id
+			val value = int_of_float (100. *. ( 1. -. (( (float_of_int new_size) -. 50. ) /. 100.) ))
 			
 			(* Sounds *)
 			val sound = check_result (Mixer.load_wav "../data/music/break.wav")
@@ -45,6 +46,7 @@ module Target = struct
 			method get_center_y = y +. ((float_of_int size) /. 2.)
 			method get_radius = (float_of_int size) /. 2.
 			method get_to_destroy = to_destroy
+			method get_value = value
 
 			(* Sounds *)
 			method get_sound = sound

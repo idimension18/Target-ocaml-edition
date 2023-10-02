@@ -9,6 +9,7 @@ open Ship
 open Laser
 open Target
 open Asteroide
+open Interface
 
 let screenWidth = 1000 and screenHeight = 500 (* default screen dims *)
 
@@ -117,8 +118,6 @@ let () =
 	(* just printing values *)
 	let _ = log_controller_info controller_option in
 	
-	(* m5x7 font *)
-	let m5x7 = check_result (Ttf.open_font "../data/fonts/m5x7.ttf" 50) in
 
 	(* Windows creation *)
 	let window = check_result (Sdl.create_window "Target ocaml edition" 
@@ -150,7 +149,9 @@ let () =
 	let ship = new Ship.ship render 
 	and lasers_list = ref [] 
 	and asteroides_list = ref []
-	and target_list = ref [] in
+	and target_list = ref [] 
+	and infos = new Interface.infos render
+	and score_infos = ref [] in
 
 	(* useful values declations *)
 	let debri_timer = ref 0 
@@ -230,7 +231,10 @@ let () =
 				game_over := false;
 				asteroides_list := [];
 				target_list := [];
-				let _ = check_result (Mixer.play_music target_soundtrack (-1)) in ()
+				score_infos := [];
+				let _ = check_result (Mixer.play_music target_soundtrack (-1)) in
+				infos#reset;
+				
 			end;
 			
 		(* ---- Level update ---- *)
@@ -266,7 +270,8 @@ let () =
 			begin
 				update_list !lasers_list (screenWidth, screenHeight);
 				update_list !asteroides_list main_speed;
-				update_list !target_list main_speed
+				update_list !target_list main_speed;
+				update_list !score_infos ();
 			end;
 
 			
@@ -278,10 +283,19 @@ let () =
 				| None -> ()
 				| _ -> 
 					begin
-						let _ = check_result (Mixer.halt_music ()) in (); 
-						let _ = check_result (Mixer.play_channel (-1) ship#get_blow 0) in 
-						ship#set_is_blowing_up; 
-						game_over := true
+						infos#lost_life;
+						if infos#get_life >= 1 then 
+							begin
+								let _ = check_result (Mixer.play_channel (-1) ship#get_spark 0) in 
+								ship#set_is_damaged; 
+							end
+						else 
+							begin
+								let _ = check_result (Mixer.halt_music ()) in (); 
+								let _ = check_result (Mixer.play_channel (-1) ship#get_blow 0) in 
+								ship#set_is_blowing_up; 
+								game_over := true
+						end
 					end 
 			end;
 			
@@ -291,7 +305,13 @@ let () =
 				begin
 					let _ = check_result (Mixer.play_channel (-1) target#get_sound 0) in 
 					target#set_to_destroy;
-					laser#set_to_destroy
+					laser#set_to_destroy;
+					infos#add_score target#get_value;
+					
+					let new_score_info = new Interface.score_info 
+						render target#get_center_x target#get_center_y target#get_value in
+					score_infos := new_score_info::!score_infos;
+					
 				end) !lasers_list)
 			!target_list;
 		
@@ -307,7 +327,8 @@ let () =
 			begin
 				lasers_list := destroy_update !lasers_list;
 				asteroides_list := destroy_update !asteroides_list;
-				target_list := destroy_update !target_list
+				target_list := destroy_update !target_list;
+				score_infos := destroy_update !score_infos
 			end;
 
 
@@ -335,9 +356,18 @@ let () =
 		List.iter (fun aste -> draw_ex render aste#get_texture aste#get_int_x aste#get_int_y aste#get_angle)
 			!asteroides_list;
 		
+		(* ---- User interface ----*)
+		(* Life *)
+		for i=0 to (infos#get_life -1) do draw render infos#get_life_texture (i*45) 0 done;
+
+		(* Score *)
+		draw render infos#get_score_texture 450 0;
+
+		(* Score infos *)
+		List.iter (fun sf -> draw render sf#get_texture sf#get_int_x sf#get_int_y) !score_infos;
 		
-		Sdl.render_present render;
 		(* ---------------------------*)
+		Sdl.render_present render;
 		
 		(* Exit main loop and Cap to 60 FPS *)
 		if !game_is_running then begin (Sdl.delay (Int32.of_int 16)); main_loop() end
