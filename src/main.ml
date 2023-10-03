@@ -41,6 +41,7 @@ let collide_with_list obj1 obj_list =
 		| Some(a) -> Some(a) ) 
 		None obj_list
 
+
 (* update component scaling value *)
 let update_scale window = 
 	let (new_w, new_h) = Sdl.get_window_size window in
@@ -117,8 +118,8 @@ let () =
 	
 	(* just printing values *)
 	let _ = log_controller_info controller_option in
-	
 
+	
 	(* Windows creation *)
 	let window = check_result (Sdl.create_window "Target ocaml edition" 
 		~x:Sdl.Window.pos_centered ~y:Sdl.Window.pos_centered ~w:screenWidth ~h:screenHeight 
@@ -126,7 +127,6 @@ let () =
 	
 	(* Renderer creation *)
 	let render = check_result (Sdl.create_renderer window) in
-	
 
 	(* ---------- Graphics and UI ------------ *)
 	(* Background *)
@@ -187,12 +187,16 @@ let () =
 							(* A Button create lasers*)
 							if (Sdl.game_controller_get_button controller Sdl.Controller.(button_a)) == 1 then
 								begin 
-									let new_laser = new Laser.laser render 
-										(ship#get_center_x -. (Laser.width /. 2.)) 
-										(ship#get_center_y -. (Laser.height /. 2.)) 
-										ship#get_angle in
-									let _ = check_result (Mixer.play_channel (-1) new_laser#get_sound 0) in
-									lasers_list := new_laser::!lasers_list
+									if ship#get_energy >= 5. then
+										begin 
+											ship#sub_energy 5.;
+											let new_laser = new Laser.laser render 
+												(ship#get_center_x -. (Laser.width /. 2.)) 
+												(ship#get_center_y -. (Laser.height /. 2.)) 
+												ship#get_angle in
+											let _ = check_result (Mixer.play_channel (-1) new_laser#get_sound 0) in
+											lasers_list := new_laser::!lasers_list
+										end
 								end
 						end
 				end
@@ -206,10 +210,17 @@ let () =
 					| None -> ()
 					| Some(controller) ->
 						begin
-							if (Sdl.game_controller_get_axis controller Sdl.Controller.(axis_trigger_right)) >= 1
-								then ship#set_fire_on true
-								else ship#set_fire_on false;
-							(* ---- Analog pad ----- *)
+							(* ---- trigger button ---- *)
+							if (Sdl.game_controller_get_axis controller Sdl.Controller.(axis_trigger_right)) >= 1 then  
+								begin
+									if ship#get_energy > 0. then begin ship#set_can_recharge false; ship#set_fire_on true end
+									else begin  ship#set_fire_on false end
+								end
+								
+							else begin ship#set_can_recharge true ; ship#set_fire_on false end;
+
+
+							(* ---- Analog pad ---- *)
 							let axis_x = Sdl.game_controller_get_axis controller Sdl.Controller.(axis_left_x)
 							and axis_y = Sdl.game_controller_get_axis controller Sdl.Controller.(axis_left_y) in
 							if (Int.abs axis_x) >=  200 || (Int.abs axis_y) >= 200   (* dead zone check TO MODIFY !!! *) then
@@ -379,6 +390,15 @@ let () =
 
 		(* Score *)
 		draw render infos#get_score_texture 450 0;
+
+		(* Energy *)
+		let _ = Sdl.set_render_draw_color render 255 255 255 0 in
+		check_result (Sdl.render_draw_rect render 
+			(Some (scale_rect (Sdl.Rect.create ~x:850 ~y:20 ~w:75 ~h:25) )));
+
+		let _ = Sdl.set_render_draw_color render 0 255 0 0 in
+		check_result (Sdl.render_fill_rect render (Some (scale_rect (Sdl.Rect.create 
+			~x:851 ~y:21 ~w:(int_of_float (73. *. (ship#get_energy /. ship#get_max_energy))) ~h:23))));
 
 		(* Score infos *)
 		List.iter (fun sf -> draw render sf#get_texture sf#get_int_x sf#get_int_y) !score_infos;

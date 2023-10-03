@@ -29,7 +29,6 @@ let load_whole_image render link scale_rect_value =
 		(Int32.of_int 0x000000FF) (Int32.of_int 0x0000FF00) 
 		(Int32.of_int 0x00FF0000) (Int32.of_int 0xFF000000)) in
 	let sheet = check_result (Image.load link) in
-	let _ = Sdl.log "lol" in
 	let _ = check_result (Sdl.blit_scaled ~src:sheet None ~dst:scaled_img (Some scale_rect)) in
 	check_result (Sdl.create_texture_from_surface render scaled_img)
 
@@ -82,7 +81,9 @@ module Ship = struct
 			val mutable x = 500. val mutable y = 250. 
 			val mutable angle = 0. val mutable new_angle = 0.
 			val mutable velocity_x = 0. val mutable velocity_y = 0.
-
+			val mutable energy = 30. val mutable can_recharge = true 
+			val max_energy = 30. val charge_rate = ( 1. /. 5. )
+			
 			(* Constants *)
 			val speed_max = 5. val rotation_speed = 7. val jet_power = 0.1
 
@@ -120,6 +121,7 @@ module Ship = struct
 			method get_is_visible = is_visible method get_fire_on = fire_on
 			method get_is_damaged = is_damaged
 			method get_is_blowing_up = is_blowing_up
+			method get_energy = energy method get_max_energy = max_energy
 
 			(* Sounds *)
 			method get_spark = spark
@@ -136,13 +138,16 @@ module Ship = struct
 			method set_new_angle a = new_angle <- a
 			method set_is_damaged = is_damaged <- true
 			method set_is_blowing_up = is_blowing_up <- true
-		
+			method sub_energy nb = energy <- energy -. nb
+			method set_can_recharge b = can_recharge <- b
+	
 			(* ----- Other method -------*)
 
 			(* automaticaly update ship *)
 			method update (screen_w, screen_h)  = 
 				(* Update functions *)
-				let go = if fire_on then   (* Turn the fire on *)
+				let go = 
+				if fire_on && energy > 0. then   (* Turn the fire on *)
 					begin
 						velocity_x <- velocity_x +. (Float.cos (angle *. (Float.pi /. 180.))) *. jet_power;
 						velocity_y <- velocity_y +. (Float.sin (angle *. (Float.pi /. 180.))) *. jet_power;
@@ -153,9 +158,10 @@ module Ship = struct
 
 						if (Int.abs (int_of_float velocity_y)) > (int_of_float speed_max) then 
 							velocity_y <- if velocity_y > 0. then speed_max else (-.speed_max);
-						(* --------------------- *)
+							
+						(* ---- Energy ---- *)
+						energy <- energy -. charge_rate
 					end
-
 			
 				and velocity = (* manage space physics *)
 					begin
@@ -199,6 +205,7 @@ module Ship = struct
 								(* damage action *)
 								if damage_timer = 1 then 
 									begin 
+										can_recharge <- false;
 										is_stunt <- true;
 										velocity_x <- (-. velocity_x /. 2.); 
 										velocity_y <- (-. velocity_y /. 2.) 
@@ -213,7 +220,8 @@ module Ship = struct
 								is_visible <- true;
 								damage_timer <- 0;
 								blink_timer <- 0;
-								spark_gif <- gif_reset spark_gif
+								spark_gif <- gif_reset spark_gif;
+								can_recharge <- true
 							end
 					end
 
@@ -224,10 +232,11 @@ module Ship = struct
 							blow_timer <- blow_timer + 1;
 							if blow_timer = 1 then 
 								begin 
+									can_recharge <- false;
 									blow_timer <- blow_timer + 1;
 									is_visible <- false; 
-									velocity_x <- (-. velocity_x /. 2.); 
-									velocity_y <- (-. velocity_y /. 2.) 
+									velocity_x <- velocity_x /. 2.; 
+									velocity_y <- velocity_y /. 2. 
 								end
 							else if blow_timer >= blow_time then 
 								begin
@@ -236,7 +245,8 @@ module Ship = struct
 									velocity_x <- 0.; velocity_y <- 0.;
 									is_visible <- true;
 									blow_timer <- 0;
-									blow_gif <- gif_reset blow_gif
+									blow_gif <- gif_reset blow_gif;
+									can_recharge <- true; energy <- max_energy;
 								end
 						end
 				(* start update function  *)
@@ -247,7 +257,8 @@ module Ship = struct
 					blow_up;
 					velocity;
 					screen_border; 
-
+					if can_recharge && energy < max_energy then energy <- energy +. charge_rate;
+					
 					if is_damaged then spark_gif <- gif_update spark_gif; 
 					if is_blowing_up then blow_gif <-  gif_update blow_gif
 				end
