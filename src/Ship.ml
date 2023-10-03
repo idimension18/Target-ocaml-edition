@@ -6,7 +6,7 @@ let ship_size = 64
 
 (* check result and crash if error *)
 let check_result rsl = match rsl with 
-	| Error(`Msg e) -> Sdl.log "Error:%s" e; exit 1
+	| Error(`Msg e) -> Sdl.log "Error: %s" e; exit 1
 	| Ok rtn -> rtn
 
 (* load croped part of an image with a scaled proportion *)
@@ -23,6 +23,17 @@ let load_image render link cut_rect scale_rect_value =
 	let _ = check_result (Sdl.blit_scaled ~src:croped_img None ~dst:scaled_img (Some scale_rect)) in
 	check_result (Sdl.create_texture_from_surface render scaled_img)
 
+let load_whole_image render link scale_rect_value = 
+	let scale_rect = (Sdl.Rect.create ~x:0 ~y:0 ~w:scale_rect_value ~h:scale_rect_value) in
+	let scaled_img = check_result (Sdl.create_rgb_surface ~w:scale_rect_value ~h:scale_rect_value ~depth:32
+		(Int32.of_int 0x000000FF) (Int32.of_int 0x0000FF00) 
+		(Int32.of_int 0x00FF0000) (Int32.of_int 0xFF000000)) in
+	let sheet = check_result (Image.load link) in
+	let _ = Sdl.log "lol" in
+	let _ = check_result (Sdl.blit_scaled ~src:sheet None ~dst:scaled_img (Some scale_rect)) in
+	check_result (Sdl.create_texture_from_surface render scaled_img)
+
+
 (* Give the direction for smooth rotation *)
 let rotation_direction angle new_angle =
 	let delta_angle = angle -. new_angle in
@@ -36,6 +47,32 @@ let angle_projection angle = match angle with
 	| a when a < 0. -> (a +. 360.)
 	| a when a >= 360. -> (a -. 360.)
 	| _ -> angle
+
+
+(* ---- GIF ---- *)
+let gif_frame_time = 3; 
+type gif = {texture_array: Sdl.texture array; fs: int ; nbf: int ; mutable cursor : int; mutable timer : int}
+
+let gif_create render gif_folder frame_size nb_frame =
+	let image_array = 
+		Array.init nb_frame (fun i -> load_whole_image render (gif_folder^(string_of_int i)^".png") frame_size) in
+	{texture_array = image_array; fs = frame_size; nbf = nb_frame; cursor = 0; timer = 0}
+
+
+let gif_update gife : gif = 
+	gife.timer <- gife.timer + 1; 
+	if (gife.timer >= gif_frame_time) && gife.cursor <> (gife.nbf - 1) then 
+		begin
+			gife.cursor <- gife.cursor + 1; 
+			gife.timer <- 0;
+			gife
+		end
+	else gife
+
+
+ let gif_reset gife : gif = begin gife.cursor <- 0; gife.timer <- 0; gife end
+
+(* -------------- *)
 
 module Ship = struct
 	class ship render = 
@@ -69,9 +106,14 @@ module Ship = struct
 			val fire = load_image render  "../data/images/sprites.png"
 				(Sdl.Rect.create ~x:2048 ~y:256 ~w:256 ~h:256) ship_size
 
+			val mutable spark_gif = gif_create render "../data/images/sparkGif/" ship_size 18 
+			val mutable blow_gif = gif_create render "../data/images/blowGif/" 350 28
+
 			(* ----- Getter -------  *)
 			(* Logical data  *)
 			method get_x = x method get_y = y method get_angle = angle
+			method get_int_x = (int_of_float x)
+			method get_int_y = (int_of_float y)
 			method get_center_x = x +. ((float_of_int ship_size) /. 2.)
 			method get_center_y = y +. ((float_of_int ship_size) /. 2.)
 			method get_radius = (float_of_int ship_size) /. 2.
@@ -86,6 +128,9 @@ module Ship = struct
 			(* Graphical data  *)
 			method get_body = body method get_fire = fire 
 
+			method get_spark_gif = spark_gif
+			method get_blow_gif = blow_gif
+			
 			(* ---- Setter -------- *)
 			method set_fire_on value = fire_on <- value
 			method set_new_angle a = new_angle <- a
@@ -167,10 +212,12 @@ module Ship = struct
 								is_damaged <- false;
 								is_visible <- true;
 								damage_timer <- 0;
-								blink_timer <- 0
+								blink_timer <- 0;
+								spark_gif <- gif_reset spark_gif
 							end
 					end
 
+				(* just explode the ship *)
 				and blow_up =
 					if is_blowing_up then
 						begin
@@ -188,9 +235,9 @@ module Ship = struct
 									x <- 500.; y <- 250.; angle <- 0.; new_angle <- 0.;
 									velocity_x <- 0.; velocity_y <- 0.;
 									is_visible <- true;
-									blow_timer <- 0
+									blow_timer <- 0;
+									blow_gif <- gif_reset blow_gif
 								end
-							
 						end
 				(* start update function  *)
 				in
@@ -200,6 +247,9 @@ module Ship = struct
 					blow_up;
 					velocity;
 					screen_border; 
+
+					if is_damaged then spark_gif <- gif_update spark_gif; 
+					if is_blowing_up then blow_gif <-  gif_update blow_gif
 				end
 
 			

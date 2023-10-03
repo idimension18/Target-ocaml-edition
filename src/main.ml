@@ -355,6 +355,23 @@ let () =
 		(* Asteroides *)
 		List.iter (fun aste -> draw_ex render aste#get_texture aste#get_int_x aste#get_int_y aste#get_angle)
 			!asteroides_list;
+
+		(* ---- Gifs ---- *)
+		(* spark *) 
+		if ship#get_is_damaged then
+			begin
+			let gif = ship#get_spark_gif in 
+				draw render gif.texture_array.(gif.cursor) ship#get_int_x ship#get_int_y
+			end;
+
+		(* blow *)
+		if ship#get_is_blowing_up then
+			begin
+			let gif = ship#get_blow_gif in 
+				draw render gif.texture_array.(gif.cursor) 
+					( (int_of_float ship#get_center_x) - (gif.fs/2) ) 
+					( (int_of_float ship#get_center_y) - (gif.fs/2) )
+			end;
 		
 		(* ---- User interface ----*)
 		(* Life *)
