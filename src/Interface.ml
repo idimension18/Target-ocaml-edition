@@ -45,7 +45,7 @@ module Interface = struct
 		(* ---- SETTER ---- *)
 		method add_score new_score = score_value <- score_value + new_score
 		method lost_life = life <- life - 1
-		method reset = begin life <- 3; score_value <- 0 end
+		method reset = (life <- 3; score_value <- 0)
 	end
 
 
@@ -75,10 +75,10 @@ module Interface = struct
 		
 		(* ---- Other methods ---- *)
 		method update () =
-			begin
-				timer <- timer + 1;
-				if timer < timer_limit then begin y <- y -. velocity_y; velocity_y <- velocity_y /. 1.5 end
-				else begin to_destroy <- true end
-			end
+		(
+			timer <- timer + 1;
+			if timer < timer_limit then (y <- y -. velocity_y; velocity_y <- velocity_y /. 1.5)
+			else (to_destroy <- true)
+		)
 	end
 end

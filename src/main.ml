@@ -36,19 +36,20 @@ let collide obj1 obj2 =
 
 (* Return obj that collide with obj1, None otherwise *)
 let collide_with_list obj1 obj_list = 
-	List.fold_left (fun acc obj -> match acc with 
-		| None -> if collide obj1 obj then Some(obj) else None
-		| Some(a) -> Some(a) ) 
+	List.fold_left
+		( fun acc obj -> match acc with 
+			| None -> if collide obj1 obj then Some(obj) else None
+			| Some(a) -> Some(a) ) 
 		None obj_list
 
 
 (* update component scaling value *)
 let update_scale window = 
 	let (new_w, new_h) = Sdl.get_window_size window in
-	begin
+	(
 		scale_x := (float_of_int new_w) /. (float_of_int screenWidth);
 		scale_y := (float_of_int new_h) /. (float_of_int screenHeight)
-	end
+	)
 
 (* --------- utilities --------- *)
 (* Re-size-ing components *)
@@ -62,6 +63,7 @@ let scale_rect rect  = (Sdl.Rect.create
 let draw render texture x y : unit = 
 	let (_, _, (w, h)) = check_result(Sdl.query_texture texture) in
 	let dst_rect = Sdl.Rect.create ~x:x ~y:y ~w:w ~h:h in
+	
 	(check_result (Sdl.render_copy 
 		~src:(Sdl.Rect.create ~x:0 ~y:0 ~w:w ~h:h) ~dst:(scale_rect dst_rect) 
 		render texture))
@@ -82,10 +84,10 @@ let circular_colision = ()
 (* update component scaling value *)
 let update_scale window = 
 	let (new_w, new_h) = Sdl.get_window_size window in
-	begin
+	(
 		scale_x := (float_of_int new_w) /. (float_of_int screenWidth);
 		scale_y := (float_of_int new_h) /. (float_of_int screenHeight)
-	end
+	)
 
 (* log controller info *)
 let log_controller_info controller_option =
@@ -134,10 +136,6 @@ let () =
 
 	let background = check_result (Sdl.create_texture_from_surface render background_surface) in 
 
-	(* Score *)
-	
-	(* ----------------------------------------- *)
-
 	(* ------ Soundtracks and sound effetcs ------- *)
 	(* Channels allocation *)
 	let _ = Mixer.allocate_channels 10 in
@@ -171,66 +169,65 @@ let () =
 			(* --------- Window events-------- *)
 			| `Quit -> game_is_running := false (* check if the game is about to close *)
 			| `Window_event -> 
-				begin
-					match Sdl.Event.(window_event_enum @@ get evt window_event_id) with
-					| `Resized -> update_scale window
-					| _ -> ()
-				end
+			(
+				match Sdl.Event.(window_event_enum @@ get evt window_event_id) with
+				| `Resized -> update_scale window
+				| _ -> ()
+			)
 			(* -------- Controller events ----- *)
 			(* Get button down *)
 			| `Controller_button_down -> 
-				begin
-					match controller_option with 
-					| None -> ()
-					| Some(controller) -> 
-						begin
-							(* A Button create lasers*)
-							if (Sdl.game_controller_get_button controller Sdl.Controller.(button_a)) == 1 then
-								begin 
-									if ship#get_energy >= 5. then
-										begin 
-											ship#sub_energy 5.;
-											let new_laser = new Laser.laser render 
-												(ship#get_center_x -. (Laser.width /. 2.)) 
-												(ship#get_center_y -. (Laser.height /. 2.)) 
-												ship#get_angle in
-											let _ = check_result (Mixer.play_channel (-1) new_laser#get_sound 0) in
-											lasers_list := new_laser::!lasers_list
-										end
-								end
-						end
-				end
+			(
+				match controller_option with 
+				| None -> ()
+				| Some(controller) -> 
+				(
+					(* A Button create lasers*)
+					if (Sdl.game_controller_get_button controller Sdl.Controller.(button_a)) == 1 then
+					( 
+						if ship#get_energy >= 5. then
+						( 
+							ship#sub_energy 5.;
+							let new_laser = new Laser.laser render 
+								(ship#get_center_x -. (Laser.width /. 2.)) 
+								(ship#get_center_y -. (Laser.height /. 2.)) 
+								ship#get_angle in
+							let _ = check_result (Mixer.play_channel (-1) new_laser#get_sound 0) in
+							lasers_list := new_laser::!lasers_list
+						)
+					)
+				)
+			)
 			(* Get button up *)
 			| `Controller_button_up -> ()
 			
 			(* Get axis states *)
 			| `Controller_axis_motion ->
-				begin 
-					match controller_option with
-					| None -> ()
-					| Some(controller) ->
-						begin
-							(* ---- trigger button ---- *)
-							if (Sdl.game_controller_get_axis controller Sdl.Controller.(axis_trigger_right)) >= 1 then  
-								begin
-									if ship#get_energy > 0. then begin ship#set_can_recharge false; ship#set_fire_on true end
-									else begin  ship#set_fire_on false end
-								end
-								
-							else begin ship#set_can_recharge true ; ship#set_fire_on false end;
+			(
+				match controller_option with
+				| None -> ()
+				| Some(controller) ->
+				(
+					(* ---- trigger button ---- *)
+					if (Sdl.game_controller_get_axis controller Sdl.Controller.(axis_trigger_right)) >= 1 then  
+						(
+							if ship#get_energy > 0. then (ship#set_can_recharge false; ship#set_fire_on true)
+							else (ship#set_fire_on false)
+						)
+						
+					else (ship#set_can_recharge true ; ship#set_fire_on false);
 
-
-							(* ---- Analog pad ---- *)
-							let axis_x = Sdl.game_controller_get_axis controller Sdl.Controller.(axis_left_x)
-							and axis_y = Sdl.game_controller_get_axis controller Sdl.Controller.(axis_left_y) in
-							if (Int.abs axis_x) >=  200 || (Int.abs axis_y) >= 200   (* dead zone check TO MODIFY !!! *) then
-							let hyp = Float.sqrt (((float_of_int axis_x)**2.) +. ((float_of_int axis_y)**2.))
-							and ad = float_of_int axis_x in
-							ship#set_new_angle 
-								(if axis_y > 0 then ((Float.acos (ad /. hyp)) *. (180. /. Float.pi))
-								else 360. -. ((Float.acos (ad /. hyp)) *. (180. /. Float.pi)));
-						end
-				end
+					(* ---- Analog pad ---- *)
+					let axis_x = Sdl.game_controller_get_axis controller Sdl.Controller.(axis_left_x)
+					and axis_y = Sdl.game_controller_get_axis controller Sdl.Controller.(axis_left_y) in
+					if (Int.abs axis_x) >=  200 || (Int.abs axis_y) >= 200   (* dead zone check TO MODIFY !!! *) then
+					let hyp = Float.sqrt (((float_of_int axis_x)**2.) +. ((float_of_int axis_y)**2.))
+					and ad = float_of_int axis_x in
+					ship#set_new_angle 
+						(if axis_y > 0 then ((Float.acos (ad /. hyp)) *. (180. /. Float.pi))
+						else 360. -. ((Float.acos (ad /. hyp)) *. (180. /. Float.pi)));
+				)
+			)
 			(* --------------------------------- *)
 			| _ -> ()
 		done;
@@ -238,38 +235,38 @@ let () =
 		
 		(* ---- level Reset -----*) (* if game over ocured *)
 		if !game_over && not ship#get_is_blowing_up then 
-			begin
-				game_over := false;
-				asteroides_list := [];
-				target_list := [];
-				score_infos := [];
-				let _ = check_result (Mixer.play_music target_soundtrack (-1)) in
-				infos#reset;
-				
-			end;
+		(
+			game_over := false;
+			asteroides_list := [];
+			target_list := [];
+			score_infos := [];
+			let _ = check_result (Mixer.play_music target_soundtrack (-1)) in
+			infos#reset;
+			
+		);
 			
 		(* ---- Level update ---- *)
 		incr debri_timer;
 		if !debri_timer > debri_frequence then 
-			begin
-				debri_timer := 0;
-				if (Random.int 10) = 1 then (* Creating targets *)
-					begin
-					let target_size = (Random.int 100) + 50 in 
-					let new_target = new Target.target render screenWidth 
-					(Random.float (500. -. (float_of_int target_size)) ) target_size (Random.int 3) in
-					target_list := new_target::!target_list
-					end;
-					
-				if (Random.int 10) <= 7 then (* Creating asteroides *)
-					begin
-					let new_size = (Random.int 100) + 40  in
-					let new_asteroide = new Asteroide.asteroide render screenWidth 
-						(Random.float (500. -. (float_of_int new_size))) 
-						new_size (Random.int 4) (Random.float 359.) (if Random.bool() then 1 else (-1)) in
-					asteroides_list := new_asteroide::!asteroides_list
-					end;
-			end;
+		(
+			debri_timer := 0;
+			if (Random.int 10) = 1 then (* Creating targets *)
+			(
+				let target_size = (Random.int 100) + 50 in 
+				let new_target = new Target.target render screenWidth 
+				(Random.float (500. -. (float_of_int target_size)) ) target_size (Random.int 3) in
+				target_list := new_target::!target_list
+			);
+				
+			if (Random.int 10) <= 7 then (* Creating asteroides *)
+			(
+				let new_size = (Random.int 100) + 40  in
+				let new_asteroide = new Asteroide.asteroide render screenWidth 
+					(Random.float (500. -. (float_of_int new_size))) 
+					new_size (Random.int 4) (Random.float 359.) (if Random.bool() then 1 else (-1)) in
+				asteroides_list := new_asteroide::!asteroides_list
+			)
+		);
 			
 		(* ------ Objects updates  --------- *)
 		(* Ship *)
@@ -278,52 +275,58 @@ let () =
 		(* Lists *)
 		let update_list alpha_list args = 
 			List.iter (fun alpha -> alpha#update args) alpha_list in
-			begin
+			(
 				update_list !lasers_list (screenWidth, screenHeight);
 				update_list !asteroides_list main_speed;
 				update_list !target_list main_speed;
 				update_list !score_infos ();
-			end;
+			);
 
 			
 		(* ---- Collisions ---- *)
 		(* Ship and Asteroides *)
 		if not (ship#get_is_damaged || ship#get_is_blowing_up || !game_over) then
-			begin
-				match collide_with_list ship !asteroides_list with
-				| None -> ()
-				| _ -> 
-					begin
-						infos#lost_life;
-						if infos#get_life >= 1 then 
-							begin
-								let _ = check_result (Mixer.play_channel (-1) ship#get_spark 0) in 
-								ship#set_is_damaged; 
-							end
-						else 
-							begin
-								let _ = check_result (Mixer.halt_music ()) in (); 
-								let _ = check_result (Mixer.play_channel (-1) ship#get_blow 0) in 
-								ship#set_is_blowing_up; 
-								game_over := true
-						end
-					end 
-			end;
+		(
+			match collide_with_list ship !asteroides_list with
+			| None -> ()
+			| _ -> 
+			(
+				infos#lost_life;
+				if infos#get_life >= 1 then 
+				(
+					let _ = check_result (Mixer.play_channel (-1) ship#get_spark 0) in 
+					ship#set_is_damaged; 
+				)
+				else 
+				(
+					let _ = check_result (Mixer.halt_music ()) in (); 
+					let _ = check_result (Mixer.play_channel (-1) ship#get_blow 0) in 
+					ship#set_is_blowing_up; 
+					game_over := true
+				)
+			) 
+		);
 			
 		(* Lasers and Targets *)
 		List.iter 
-			(fun target -> List.iter (fun laser -> if collide target laser then 
-				begin
-					let _ = check_result (Mixer.play_channel (-1) target#get_sound 0) in 
-					target#set_to_destroy;
-					laser#set_to_destroy;
-					infos#add_score target#get_value;
-					
-					let new_score_info = new Interface.score_info 
-						render target#get_center_x target#get_center_y target#get_value in
-					score_infos := new_score_info::!score_infos;
-					
-				end) !lasers_list)
+			(
+				fun target -> List.iter 
+				(
+					fun laser -> if collide target laser then 
+					(
+						let _ = check_result (Mixer.play_channel (-1) target#get_sound 0) in 
+						target#set_to_destroy;
+						laser#set_to_destroy;
+						infos#add_score target#get_value;
+						
+						let new_score_info = new Interface.score_info 
+							render target#get_center_x target#get_center_y target#get_value in
+						score_infos := new_score_info::!score_infos;
+						
+					)
+				) 
+				!lasers_list
+			)
 			!target_list;
 		
 		(* Lasers and Asteroides *)
@@ -335,12 +338,12 @@ let () =
 		(* ------  Destroy stuff ------ *)
 		let destroy_update alpha_list = List.rev
 			(List.fold_left (fun acc x -> if x#get_to_destroy then acc else x::acc) [] alpha_list) in
-			begin
+			(
 				lasers_list := destroy_update !lasers_list;
 				asteroides_list := destroy_update !asteroides_list;
 				target_list := destroy_update !target_list;
 				score_infos := destroy_update !score_infos
-			end;
+			);
 
 
 		(* --------- RENDERING ------------- *)
@@ -349,11 +352,11 @@ let () =
 
 		(* Ship *)
 		if ship#get_is_visible then 
-			begin 
-				draw_ex render ship#get_body (int_of_float ship#get_x) (int_of_float ship#get_y) ship#get_angle;
-				if ship#get_fire_on then 
-					draw_ex render ship#get_fire (int_of_float ship#get_x) (int_of_float ship#get_y) ship#get_angle
-			end;
+		(
+			draw_ex render ship#get_body (int_of_float ship#get_x) (int_of_float ship#get_y) ship#get_angle;
+			if ship#get_fire_on then 
+				draw_ex render ship#get_fire (int_of_float ship#get_x) (int_of_float ship#get_y) ship#get_angle
+		);
 
 		(* Lasers *)
 		List.iter (fun laser -> draw_ex render laser#get_texture laser#get_int_x laser#get_int_y laser#get_angle)
@@ -370,19 +373,19 @@ let () =
 		(* ---- Gifs ---- *)
 		(* spark *) 
 		if ship#get_is_damaged then
-			begin
+		(
 			let gif = ship#get_spark_gif in 
 				draw render gif.texture_array.(gif.cursor) ship#get_int_x ship#get_int_y
-			end;
+		);
 
 		(* blow *)
 		if ship#get_is_blowing_up then
-			begin
+		(
 			let gif = ship#get_blow_gif in 
 				draw render gif.texture_array.(gif.cursor) 
 					( (int_of_float ship#get_center_x) - (gif.fs/2) ) 
 					( (int_of_float ship#get_center_y) - (gif.fs/2) )
-			end;
+		);
 		
 		(* ---- User interface ----*)
 		(* Life *)
@@ -407,7 +410,7 @@ let () =
 		Sdl.render_present render;
 		
 		(* Exit main loop and Cap to 60 FPS *)
-		if !game_is_running then begin (Sdl.delay (Int32.of_int 16)); main_loop() end
+		if !game_is_running then ( (Sdl.delay (Int32.of_int 16)); main_loop() )
 	in
 
 	main_loop();
