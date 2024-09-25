@@ -5,6 +5,7 @@ open Tsdl_ttf
 open Tsdl_mixer
 
 (* Importing game objects  *)
+open Tools
 open Ship
 open Laser
 open Target
@@ -17,16 +18,6 @@ let scale_x = ref 1. and scale_y = ref 1. (* When the screen is resize *)
 
 let debri_frequence = 30
 let main_speed = 3.
-
-(* check result and crash if error *)
-let check_result rsl = match rsl with
-	| Error(`Msg e) -> Sdl.log "Error:%s" e; exit 1
-	| Ok rtn -> rtn
-
-(* check result and ignore if error *)
-let check_result_ignore rsl = match rsl with
-	| Error(`Msg e) -> (Sdl.log "Error:%s" e); None
-	| Ok rtn -> Some(rtn)
 
 
 (* Calculate circular collision  *)

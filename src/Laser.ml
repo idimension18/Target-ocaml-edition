@@ -1,10 +1,7 @@
 open Tsdl
 open Tsdl_image
 open Tsdl_mixer
-
-let check_result rsl = match rsl with
-	| Error(`Msg e) -> Sdl.log "Error: %s" e; exit 1
-	| Ok rtn -> rtn
+open Tools
 
 
 module Laser = struct
