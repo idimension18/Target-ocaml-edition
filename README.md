@@ -42,6 +42,11 @@ The controls are :
 - The analogic pad to control the direction (the ship will point to the direction of the pad)
 - And Right Trigger to turn on the engine ! (ps : since you're in space, think about the consequences of your actions)
 
+# Cool screenshots 
+<p align="center">
+  <img src="data/images/screen1.png" width="350" title="Cool screenshot 1">
+  <img src="data/images/screen3.png" width="350" title="Cool screenshot 2">
+</p>
 
 # Licence
 Do whatever you do with this game :) I don't own nothing.
