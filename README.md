@@ -40,7 +40,7 @@ This game only support game controller (yep, keyboard wont work)
 The controls are :
 - Button A to fire lasers (that destroy targets)
 - The analogic pad to control the direction (the ship will point to the direction of the pad)
-- And Right Trigger to turn on the engine ! (ps : since you are in space, think about the consequence of your act)
+- And Right Trigger to turn on the engine ! (ps : since you're in space, think about the consequences of your actions)
 
 
 # Licence
