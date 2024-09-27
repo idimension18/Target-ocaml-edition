@@ -8,10 +8,7 @@ To be honest... I don't really want to do some procedural generation to assure a
 Since this game was made in [OCaml](https://ocaml.org/), you need to install it to run this game.
 For that, I highly recommend you to use [opam](https://opam.ocaml.org/). That will make your OCaml life less a burden.
 And finaly, after that you have configure opam, you can download [Tsdl](https://ocaml.org/p/tsdl/latest/CHANGES.md.html), which is a bind of [SDL](https://www.libsdl.org/) in OCaml, with the command :
-```
-opam install tsdl tsld-image tsdl-mixer tsdl-ttf
-```
-Don't forget to update opam if it doesn't work with the command : 
+first make sure opam is up to date : 
 ```
 opam upgrade
 ```
@@ -19,7 +16,12 @@ or
 ```
 opam update
 ```
-So of course you need to have SDL (and all accompagned libs image mixer ttf ...) installed for Tsdl to work.
+and then you can install Tsdl and the others accompagned libs with the command :
+
+```
+opam install tsdl tsld-image tsdl-mixer tsdl-ttf
+```
+ps : you need to have SDL (and all accompagned libs image mixer ttf ...) installed for Tsdl to work.
 
 # Build / Install
 First clone the repo :
