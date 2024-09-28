@@ -32,7 +32,8 @@ then, on the root of the project, just run :
 ```
 make
 ```
-If all has gone well, a binary should appear in the bin folder.
+If all has gone well, a binary should have appeared in the bin folder.
+
 If you want to clean the repo you can run :
 ```
 make clean
