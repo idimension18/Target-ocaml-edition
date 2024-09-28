@@ -53,5 +53,5 @@ The controls are :
 </p>
 
 # Licence
-Do whatever you do with this game :) I don't own anything.
+Do whatever you want with this game :) I don't own anything.
 
