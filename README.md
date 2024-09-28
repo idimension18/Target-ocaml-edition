@@ -26,7 +26,7 @@ ps : you need to have SDL (and all accompagned libs image mixer ttf ...) install
 # Build / Install
 First clone the repo :
 ```
-clone https://github.com/idimension18/Target-ocaml-edition
+git clone https://github.com/idimension18/Target-ocaml-edition
 ```
 then, on the root of the project, just run :
 ```
