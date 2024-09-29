@@ -4,8 +4,8 @@ CC = ocamlfind ocamlc
 LDFLAGS = -package tsdl -package tsdl-image -package tsdl-mixer -package tsdl-ttf -thread -linkpkg
 
 
-OBJS = Tools.cmo Ship.cmo Asteroide.cmo Target.cmo Laser.cmo Interface.cmo
-CMI = Tools.cmi Ship.cmi Asteroide.cmi Target.cmi Laser.cmi Interface.cmi
+OBJS = Tools.cmo Laser.cmo Ship.cmo Asteroide.cmo Target.cmo Interface.cmo
+CMI = Tools.cmi Laser.cmi Ship.cmi Asteroide.cmi Target.cmi Interface.cmi
 
 
 $(TARGET) : $(CMI) $(OBJS) main.cmo

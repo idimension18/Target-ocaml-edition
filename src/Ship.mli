@@ -3,6 +3,7 @@ open Tsdl_image
 open Tsdl_mixer
 open Tools
 
+open Laser
 
 module Ship : sig
 	class ship : Sdl.renderer -> object
@@ -36,6 +37,7 @@ module Ship : sig
 	  val mutable velocity_y : float
 	  val mutable x : float
 	  val mutable y : float
+
 	  method get_angle : float
 	  method get_blow : Mixer.chunk
 	  method get_blow_gif : gif
@@ -56,12 +58,15 @@ module Ship : sig
 	  method get_spark_gif : gif
 	  method get_x : float
 	  method get_y : float
+
 	  method set_can_recharge : bool -> unit
 	  method set_fire_on : bool -> unit
 	  method set_is_blowing_up : unit
 	  method set_is_damaged : unit
 	  method set_new_angle : float -> unit
 	  method sub_energy : float -> unit
+
+    method fire_laser : Sdl.renderer -> Laser.laser option
 	  method update : int * int -> unit
 	end
 end

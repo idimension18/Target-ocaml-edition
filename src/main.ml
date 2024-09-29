@@ -72,68 +72,120 @@ let draw_ex render texture x y angle : unit =
 (* A function to calculate circular collision  *)
 let circular_colision = () 
 
-(* update component scaling value *)
-let update_scale window = 
-	let (new_w, new_h) = Sdl.get_window_size window in
-	(
-		scale_x := (float_of_int new_w) /. (float_of_int screenWidth);
-		scale_y := (float_of_int new_h) /. (float_of_int screenHeight)
-	)
-
 (* log controller info *)
 let log_controller_info controller_option =
 	Sdl.log "\n";
 	Sdl.log "Controller data : \n";
 	match controller_option with 
 	| None -> ()
-	| Some(controller) -> Sdl.log "%s \n\n" (check_result (Sdl.game_controller_mapping controller))
+  | Some(controller) -> Sdl.log "%s \n\n" (check_result (Sdl.game_controller_mapping controller))
+
+
+let on_button_down controller_option ship lasers_list render =
+  match controller_option with 
+    | None -> ()
+    | Some(controller) -> 
+    (
+      (* A Button create lasers*)
+      if (Sdl.game_controller_get_button controller Sdl.Controller.(button_a)) == 1 then
+      (
+        match ship#fire_laser render with
+        | None -> ()
+        | Some(new_laser) -> lasers_list := new_laser::!lasers_list
+      )
+    )
+
+
+(* axis motions *)
+let trigger_motion controller ship =
+  if (Sdl.game_controller_get_axis controller Sdl.Controller.(axis_trigger_right)) >= 1 then  
+    (
+      if ship#get_energy > 0. then (ship#set_can_recharge false; ship#set_fire_on true)
+      else (ship#set_fire_on false)
+    )
+    
+  else (ship#set_can_recharge true ; ship#set_fire_on false) 
+
+let pad_motion controller ship = 
+  let axis_x = Sdl.game_controller_get_axis controller Sdl.Controller.(axis_left_x)
+  and axis_y = Sdl.game_controller_get_axis controller Sdl.Controller.(axis_left_y) in
+
+  if (Int.abs axis_x) >=  200 || (Int.abs axis_y) >= 200   (* dead zone check TO MODIFY !!! *) 
+  then
+    let hyp = Float.sqrt (((float_of_int axis_x)**2.) +. ((float_of_int axis_y)**2.))
+    and ad = float_of_int axis_x in 
+    let angle = ((Float.acos (ad /. hyp)) *. (180. /. Float.pi)) in
+    ship#set_new_angle (if axis_y > 0 then angle else 360. -. angle)
+
+let on_axis_motion controller_option ship =
+  match controller_option with
+  | None -> ()
+  | Some(controller) ->
+  (
+    (* ---- trigger button ---- *)
+    trigger_motion controller ship;
+    
+    (* ---- Analog pad ---- *)
+    pad_motion controller ship 
+  )
+
+
+let on_window_event evt window = 
+  match Sdl.Event.(window_event_enum @@ get evt window_event_id) with
+  | `Resized -> update_scale window
+  | _ -> ()
+
+
+let manage_events evt controller_option window ship game_is_running lasers_list render =
+  let rec f () =  
+    if not (Sdl.poll_event (Some evt)) then () else
+    let _ = 
+      match Sdl.Event.(enum @@ get evt typ) with
+      | `Quit -> game_is_running := false (* check if the game is about to close *)
+      | `Window_event -> on_window_event evt window 
+
+      (* Get button down *)
+      | `Controller_button_down -> on_button_down controller_option ship lasers_list render
+       
+      (* Get axis states *)
+      | `Controller_axis_motion -> on_axis_motion controller_option ship
+      | _ -> () 
+    in f () 
+  in 
+  f ()
+
+
+let init () =
+	(* ---- SDL and accompagned lib init --- *)
+	let _ = check_result (Sdl.init Sdl.Init.(video + gamecontroller)) in
+	let _ = Image.init Image.Init.(png) in
+	let _ = Ttf.init() in
+	let _ = check_result (Mixer.open_audio 44100 Mixer.default_format Mixer.default_channels 1024) in
+	let _ = Mixer.allocate_channels 10 in
+	Random.self_init()
+	
 
 (* -------- main code ------ *)
 let () = 
-	(* ---- SDL and accompagned lib init --- *)
-	(* SDL init *)
-	let _ = check_result (Sdl.init Sdl.Init.(video + gamecontroller)) in
+  let _ = init () in
 
-	(* SDL_image init  *)
-	let _ = Image.init Image.Init.(png) in
-
-	(* SDL_ttf init *)
-	let _ = Ttf.init() in
-
-	(* SDL_mixer init *)
-	let _ = check_result (Mixer.open_audio 44100 Mixer.default_format Mixer.default_channels 1024) in
-
-	let _ = Random.self_init() in
-	(* ------------------------------------- *)
-	
-	(* Loading controller  *)
+  (* Loading controller  *)
 	let controller_option = check_result_ignore (Sdl.game_controller_open 0) in
-	
-	(* just printing values *)
 	let _ = log_controller_info controller_option in
 
-	
-	(* Windows creation *)
+	(* Windows and renderer creation *)
 	let window = check_result (Sdl.create_window "Target ocaml edition" 
 		~x:Sdl.Window.pos_centered ~y:Sdl.Window.pos_centered ~w:screenWidth ~h:screenHeight 
 		Sdl.Window.(windowed + resizable)) in 
-	
-	(* Renderer creation *)
 	let render = check_result (Sdl.create_renderer window) in
 
-	(* ---------- Graphics and UI ------------ *)
 	(* Background *)
 	let background_surface = check_result (Image.load "../data/images/background.png") in
-
 	let background = check_result (Sdl.create_texture_from_surface render background_surface) in 
 
-	(* ------ Soundtracks and sound effetcs ------- *)
 	(* Channels allocation *)
-	let _ = Mixer.allocate_channels 10 in
-	(* Soundtrack *)
 	let target_soundtrack = check_result (Mixer.load_mus "../data/music/TargetSong.wav") in
 	
-	(* ---------------------------------------------- *)
 	(* Objects declarations *)
 	let ship = new Ship.ship render 
 	and lasers_list = ref [] 
@@ -146,85 +198,17 @@ let () =
 	let debri_timer = ref 0 
 	and game_over = ref false in
 	
-	(* play the soundtrack *)
+	(* juste before the game *)
 	let _ = check_result (Mixer.play_music target_soundtrack (-1)) in
+  let game_is_running = ref true in
 
-	
+
 	(* ---------- main loop ------------ *)
-	let game_is_running = ref true in
 	let rec main_loop () = 
-		(* ---------- SDL EVENTS  ------------*)
-		let evt = Sdl.Event.create() in
-		while Sdl.poll_event (Some evt) do
-			match Sdl.Event.(enum @@ get evt typ) with
-			(* --------- Window events-------- *)
-			| `Quit -> game_is_running := false (* check if the game is about to close *)
-			| `Window_event -> 
-			(
-				match Sdl.Event.(window_event_enum @@ get evt window_event_id) with
-				| `Resized -> update_scale window
-				| _ -> ()
-			)
-			(* -------- Controller events ----- *)
-			(* Get button down *)
-			| `Controller_button_down -> 
-			(
-				match controller_option with 
-				| None -> ()
-				| Some(controller) -> 
-				(
-					(* A Button create lasers*)
-					if (Sdl.game_controller_get_button controller Sdl.Controller.(button_a)) == 1 then
-					( 
-						if ship#get_energy >= 5. then
-						( 
-							ship#sub_energy 5.;
-							let new_laser = new Laser.laser render 
-								(ship#get_center_x -. (Laser.width /. 2.)) 
-								(ship#get_center_y -. (Laser.height /. 2.)) 
-								ship#get_angle in
-							let _ = check_result (Mixer.play_channel (-1) new_laser#get_sound 0) in
-							lasers_list := new_laser::!lasers_list
-						)
-					)
-				)
-			)
-			(* Get button up *)
-			| `Controller_button_up -> ()
-			
-			(* Get axis states *)
-			| `Controller_axis_motion ->
-			(
-				match controller_option with
-				| None -> ()
-				| Some(controller) ->
-				(
-					(* ---- trigger button ---- *)
-					if (Sdl.game_controller_get_axis controller Sdl.Controller.(axis_trigger_right)) >= 1 then  
-						(
-							if ship#get_energy > 0. then (ship#set_can_recharge false; ship#set_fire_on true)
-							else (ship#set_fire_on false)
-						)
-						
-					else (ship#set_can_recharge true ; ship#set_fire_on false);
+    let evt = Sdl.Event.create() in
+    let _ = manage_events evt controller_option window ship game_is_running lasers_list render in
 
-					(* ---- Analog pad ---- *)
-					let axis_x = Sdl.game_controller_get_axis controller Sdl.Controller.(axis_left_x)
-					and axis_y = Sdl.game_controller_get_axis controller Sdl.Controller.(axis_left_y) in
-					if (Int.abs axis_x) >=  200 || (Int.abs axis_y) >= 200   (* dead zone check TO MODIFY !!! *) then
-					let hyp = Float.sqrt (((float_of_int axis_x)**2.) +. ((float_of_int axis_y)**2.))
-					and ad = float_of_int axis_x in
-					ship#set_new_angle 
-						(if axis_y > 0 then ((Float.acos (ad /. hyp)) *. (180. /. Float.pi))
-						else 360. -. ((Float.acos (ad /. hyp)) *. (180. /. Float.pi)));
-				)
-			)
-			(* --------------------------------- *)
-			| _ -> ()
-		done;
-
-		
-		(* ---- level Reset -----*) (* if game over ocured *)
+    (* ---- level Reset -----*) (* if game over ocured *)
 		if !game_over && not ship#get_is_blowing_up then 
 		(
 			game_over := false;
@@ -233,7 +217,6 @@ let () =
 			score_infos := [];
 			let _ = check_result (Mixer.play_music target_soundtrack (-1)) in
 			infos#reset;
-			
 		);
 			
 		(* ---- Level update ---- *)

@@ -3,10 +3,12 @@ open Tsdl_image
 open Tsdl_mixer
 open Tools
 
+open Laser
+
 let ship_size = 64
 
 module Ship = struct
-	class ship render = object
+	class ship render = object (self)
 		(* --------- Variable --------- *)
 		(* State data  *)
 		val mutable x = 500. val mutable y = 250. 
@@ -29,7 +31,7 @@ module Ship = struct
 		(* Sounds *)
 		val spark = check_result (Mixer.load_wav "../data/music/spark.wav")
 		val blow = check_result (Mixer.load_wav "../data/music/blow.wav")
-		
+    val fire_sound = check_result (Mixer.load_wav "../data/music/lazer.wav")
 		
 		(* Graphical data  *)
 		val body = load_image render "../data/images/sprites.png"  
@@ -37,10 +39,10 @@ module Ship = struct
 
 		val fire = load_image render  "../data/images/sprites.png"
 			(Sdl.Rect.create ~x:2048 ~y:256 ~w:256 ~h:256) ship_size
-
+    
 		val mutable spark_gif = gif_create render "../data/images/sparkGif/" ship_size 18 
 		val mutable blow_gif = gif_create render "../data/images/blowGif/" 350 28
-
+    
 		(* ----- Getter -------  *)
 		(* Logical data  *)
 		method get_x = x method get_y = y method get_angle = angle
@@ -69,11 +71,25 @@ module Ship = struct
 		method set_new_angle a = new_angle <- a
 		method set_is_damaged = is_damaged <- true
 		method set_is_blowing_up = is_blowing_up <- true
-		method sub_energy nb = energy <- energy -. nb
+    method sub_energy nb = energy <- energy -. nb
 		method set_can_recharge b = can_recharge <- b
 
 		(* ----- Other method -------*)
-
+    method fire_laser render =
+      if energy >= 5. 
+      then
+      (
+        self#sub_energy 5.;
+        Mixer.play_channel (-1) fire_sound 0;
+        let new_laser = new Laser.laser render
+          (self#get_center_x -. (Laser.width /. 2.))
+          (self#get_center_y -. (Laser.height /. 2.))
+          angle 
+        in
+        Some(new_laser)
+      )
+      else None
+     
 		(* automaticaly update ship *)
 		method update (screen_w, screen_h)  = 
 			(* Update functions *)
