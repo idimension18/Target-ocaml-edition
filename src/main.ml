@@ -163,7 +163,32 @@ let init () =
 	let _ = check_result (Mixer.open_audio 44100 Mixer.default_format Mixer.default_channels 1024) in
 	let _ = Mixer.allocate_channels 10 in
 	Random.self_init()
-	
+
+
+let summon_target target_list =
+  let target_size = (Random.int 100) + 50 in 
+  let new_target = new Target.target render screenWidth 
+  (Random.float (500. -. (float_of_int target_size)) ) target_size (Random.int 3) in
+  target_list := new_target::!target_list
+
+let summon_asteroid asteroides_list =
+  let new_size = (Random.int 100) + 40  in
+  let new_asteroide = new Asteroide.asteroide render screenWidth 
+    (Random.float (500. -. (float_of_int new_size))) 
+    new_size (Random.int 4) (Random.float 359.) (if Random.bool() then 1 else (-1)) in
+  asteroides_list := new_asteroide::!asteroides_list
+
+
+let level_update asteroides_list target_list =
+  incr debri_timer;
+  if !debri_timer > debri_frequence then 
+  (
+    debri_timer := 0;
+    if (Random.int 10) = 1 then (* Creating targets *)
+      summon_target target_list
+    else if (Random.int 10) <= 7 then (* Creating asteroides *)
+      summon_asteroid asteroides_list
+  )
 
 (* -------- main code ------ *)
 let () = 
@@ -220,31 +245,11 @@ let () =
 		);
 			
 		(* ---- Level update ---- *)
-		incr debri_timer;
-		if !debri_timer > debri_frequence then 
-		(
-			debri_timer := 0;
-			if (Random.int 10) = 1 then (* Creating targets *)
-			(
-				let target_size = (Random.int 100) + 50 in 
-				let new_target = new Target.target render screenWidth 
-				(Random.float (500. -. (float_of_int target_size)) ) target_size (Random.int 3) in
-				target_list := new_target::!target_list
-			);
-				
-			if (Random.int 10) <= 7 then (* Creating asteroides *)
-			(
-				let new_size = (Random.int 100) + 40  in
-				let new_asteroide = new Asteroide.asteroide render screenWidth 
-					(Random.float (500. -. (float_of_int new_size))) 
-					new_size (Random.int 4) (Random.float 359.) (if Random.bool() then 1 else (-1)) in
-				asteroides_list := new_asteroide::!asteroides_list
-			)
-		);
-			
+    let _ = level_update asteroides_list target_list in
+
 		(* ------ Objects updates  --------- *)
 		(* Ship *)
-		ship#update (screenWidth, screenHeight);
+    let _ = ship#update (screenWidth, screenHeight)
 
 		(* Lists *)
 		let update_list alpha_list args = 
