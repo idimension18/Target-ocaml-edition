@@ -1,1 +1,4 @@
-build/
+*.cmo
+*.cmi
+bin/:w
+

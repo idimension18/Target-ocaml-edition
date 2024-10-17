@@ -81,20 +81,21 @@ let log_controller_info controller_option =
   | Some(controller) -> Sdl.log "%s \n\n" (check_result (Sdl.game_controller_mapping controller))
 
 
+let fire_laser ship lasers_list render =
+  match ship#fire_laser render with
+  | None -> ()
+  | Some(new_laser) -> lasers_list := new_laser::!lasers_list
+
+
 let on_button_down controller_option ship lasers_list render =
   match controller_option with 
     | None -> ()
     | Some(controller) -> 
     (
       (* A Button create lasers*)
-      if (Sdl.game_controller_get_button controller Sdl.Controller.(button_a)) == 1 then
-      (
-        match ship#fire_laser render with
-        | None -> ()
-        | Some(new_laser) -> lasers_list := new_laser::!lasers_list
-      )
+      if (Sdl.game_controller_get_button controller Sdl.Controller.(button_a)) == 1 
+      then fire_laser ship lasers_list render
     )
-
 
 (* axis motions *)
 let trigger_motion controller ship =
@@ -165,13 +166,13 @@ let init () =
 	Random.self_init()
 
 
-let summon_target target_list =
+let summon_target target_list render =
   let target_size = (Random.int 100) + 50 in 
   let new_target = new Target.target render screenWidth 
   (Random.float (500. -. (float_of_int target_size)) ) target_size (Random.int 3) in
   target_list := new_target::!target_list
 
-let summon_asteroid asteroides_list =
+let summon_asteroid asteroides_list render =
   let new_size = (Random.int 100) + 40  in
   let new_asteroide = new Asteroide.asteroide render screenWidth 
     (Random.float (500. -. (float_of_int new_size))) 
@@ -179,15 +180,15 @@ let summon_asteroid asteroides_list =
   asteroides_list := new_asteroide::!asteroides_list
 
 
-let level_update asteroides_list target_list =
+let level_update debri_timer debri_frequence asteroides_list target_list render =
   incr debri_timer;
   if !debri_timer > debri_frequence then 
   (
     debri_timer := 0;
     if (Random.int 10) = 1 then (* Creating targets *)
-      summon_target target_list
+      summon_target target_list render
     else if (Random.int 10) <= 7 then (* Creating asteroides *)
-      summon_asteroid asteroides_list
+      summon_asteroid asteroides_list render
   )
 
 (* -------- main code ------ *)
@@ -245,11 +246,11 @@ let () =
 		);
 			
 		(* ---- Level update ---- *)
-    let _ = level_update asteroides_list target_list in
+    let _ = level_update debri_timer debri_frequence asteroides_list target_list render in
 
 		(* ------ Objects updates  --------- *)
 		(* Ship *)
-    let _ = ship#update (screenWidth, screenHeight)
+    let _ = ship#update (screenWidth, screenHeight) in
 
 		(* Lists *)
 		let update_list alpha_list args = 
