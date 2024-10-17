@@ -1,4 +1,4 @@
 *.cmo
 *.cmi
-bin/:w
+bin/
 
